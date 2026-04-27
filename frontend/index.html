@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-RA | Requirements Analyst</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet"
+    >
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">AI-RA</div>
+            <nav class="project-list">
+                <button id="newAnalysisBtn" class="new-btn nav-item">+ Yeni Analiz</button>
+                <button class="history-item active nav-item" data-project="musteri-portali">Müşteri Portalı</button>
+                <button class="history-item nav-item" data-project="odeme-sistemi">Ödeme Sistemi</button>
+                <button id="settingsBtn" class="history-item nav-item">Ayarlar</button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1 id="pageTitle">Gereksinim Analizi - Müşteri Portalı</h1>
+                <div class="header-actions">
+                    <label for="rag-upload" class="upload-label">📁 RAG Yükle</label>
+                    <input type="file" id="rag-upload" hidden>
+                </div>
+            </header>
+
+            <section class="input-section content-switch" id="inputSection">
+                <div class="input-shell" id="inputShell">
+                    <textarea
+                        id="userInput"
+                        placeholder="Yazılım fikrini buraya yaz veya sesli komut ver..."
+                    ></textarea>
+                    <button id="micBtn" class="secondary-btn mic-btn" aria-label="Sesle Gir">🎤</button>
+                </div>
+
+                <div class="input-controls">
+                    <div class="analyze-wrap">
+                        <button id="analyzeBtn" class="primary-btn">Analiz Et (BDD)</button>
+                        <span id="shortcutToast" class="shortcut-toast">Shortcut Triggered</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="output-section content-switch" id="outputSection">
+                <div class="output-header">
+                    <span>Analiz Çıktısı (Gherkin & Story Point)</span>
+                    <div class="export-options">
+                        <button id="jiraBtn" class="export-btn">Jira'ya At</button>
+                        <button class="export-btn">PDF İndir</button>
+                    </div>
+                </div>
+                <div id="resultDisplay" class="result-box">
+                    <p class="placeholder-text">Yapay zeka analizi burada görünecek...</p>
+
+                    <div id="skeleton" class="skeleton hidden" aria-hidden="true">
+                        <div class="sk-line w-80"></div>
+                        <div class="sk-line w-60"></div>
+                        <div class="sk-gap"></div>
+                        <div class="sk-line w-90"></div>
+                        <div class="sk-line w-70"></div>
+                        <div class="sk-line w-50"></div>
+                        <div class="sk-gap"></div>
+                        <div class="sk-line w-85"></div>
+                        <div class="sk-line w-65"></div>
+                    </div>
+
+                    <pre id="bddOutput" class="bdd-output hidden"></pre>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="settingsModal" class="settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="settings-panel">
+            <div class="settings-head">
+                <h2 id="settingsTitle">Ayarlar</h2>
+                <button id="closeSettingsBtn" class="export-btn" type="button">Kapat</button>
+            </div>
+            <p class="settings-desc">API Key ve RAG ayarlari burada yonetilecek.</p>
+            <div class="settings-grid">
+                <label>
+                    API Key
+                    <input type="text" placeholder="sk-..." />
+                </label>
+                <label>
+                    Varsayilan RAG Koleksiyonu
+                    <input type="text" placeholder="product-docs-v1" />
+                </label>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
