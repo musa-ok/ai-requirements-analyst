@@ -20,11 +20,11 @@ Built with **Multi-Agent Orchestration** logic using **LangGraph**, it ensures h
 
 | Layer | Technology |
 | :--- | :--- |
-| **Project Leader** | **Muhammed Sina Gün** |
-| **Tester** | **Berk Kızgın** |
-| **Developer** | **Musa Ok** |
-| **Developer** | **Seyyid Muhammed Sun** |
-| **Developer** | **Şahin Kara** |
+| **Backend** | Python 3.9.6, FastAPI, LangGraph |
+| **LLM** | Google Gemini 2.5 Flash |
+| **Database** | PostgreSQL & ChromaDB (Vector Store) |
+| **Frontend** | Vanilla JavaScript, Modern CSS3 (Dark Aesthetic) |
+
 
 ---
 
@@ -32,11 +32,11 @@ Built with **Multi-Agent Orchestration** logic using **LangGraph**, it ensures h
 
 | Role | Name |
 | :--- | :--- |
-| **Project Leader / Lead Developer** | **M** |
-| **QA Engineer / Tester** | **Berk Kızgın** |
-| **Backend & DB Specialist** | **Şahin Kara** |
-| **Frontend Developer** | **Seyyid Muhammed Sun** |
-| **Documentation & RAG Specialist** | **Muhammed Sina Gün** |
+| **Project Leader** | **Muhammed Sina Gün** |
+| **Tester** | **Berk Kızgın** |
+| **Developer** | **Musa Ok** |
+| **Developer** | **Seyyid Muhammed Sun** |
+| **Developer** | **Şahin Kara** |
 
 ---
 
