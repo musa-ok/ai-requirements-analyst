@@ -1,123 +1,64 @@
-# AI_RA — Yapay Zekâ Destekli Gereksinim Analisti Sistemi
-## İlk SaaS Prototipi
+# AI-RA: AI-Driven Requirements Analyst
+
+AI-RA is a **Multi-Agent Requirements Analysis System** that transforms vague software ideas into structured, testable engineering specifications.
 
 ---
 
-## Proje Tanımı
+## HW5 — FirstSaaSPrototype (Django)
 
-AI_RA, kullanıcıların doğal dilde ifade ettiği yazılım fikirlerini BDD formatında yapılandırılmış gereksinime, Gherkin test senaryosuna ve Story Point tahminlerine dönüştüren web tabanlı bir SaaS uygulamasıdır.
+The `FirstSaaSPrototype` in this repo is the HW5 submission: a working Django MVT SaaS prototype demonstrating 3-tier architecture, RESTful routing, BDD/Gherkin output generation, and full test coverage.
 
-Bu prototip, sistemi MVP (Minimum Viable Product) kapsamında gerçekleştirir; canlı Gemini API bağlantısı olmadan deterministik analiz servisi ile çalışır.
+| URL | Description |
+|-----|-------------|
+| `/` | Home page |
+| `/requirements/new/` | Requirement input form |
+| `/requirements/<id>/` | Analysis result page |
+| `/requirements/` | History list |
 
----
-
-## Teknolojiler
-
-| Katman | Teknoloji |
-|--------|-----------|
-| Backend | Django 4.2 (Python) |
-| Veritabanı | SQLite (prototip), PostgreSQL'e geçiş hazır |
-| Frontend | HTML5 / CSS3 (template tabanlı) |
-| Test | pytest, pytest-django, behave |
-| Deploy | Render.com |
-
----
-
-## Mimari
-
-Bu prototip **3-tier mimari** ve **MVC/MVT** prensipleri üzerine inşa edilmiştir:
-
-```
-Presentation Tier  →  HTML/CSS Templates (requirements_app/templates/)
-Logic Tier         →  Django Views + Services (views.py, services.py)
-Persistence Tier   →  SQLite / Django ORM (models.py)
-```
-
-HTTP istek-yanıt döngüsü:
-```
-Tarayıcı → HTTP Request → Django URL Router → View/Controller → Template → HTTP Response
-```
-
----
-
-## Kurulum
-
+**Run locally:**
 ```bash
-# 1. Sanal ortam oluştur ve aktive et
 python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # Linux / macOS
-
-# 2. Bağımlılıkları yükle
-pip install -r requirements.txt
-
-# 3. Veritabanını hazırla
+venv\Scripts\activate
+pip install Django gunicorn whitenoise pytest pytest-django behave
 python manage.py migrate
-
-# 4. Uygulamayı başlat
 python manage.py runserver
 ```
 
-Tarayıcıda aç: http://127.0.0.1:8000
+**Tests:** `python manage.py test` → 44/44 passing
+
+**Deploy:** Render.com — `gunicorn ai_ra_saas.wsgi`
 
 ---
 
-## Sayfalar ve URL'ler
+## AI Core (FastAPI + LangGraph)
 
-| URL | Açıklama |
-|-----|----------|
-| `/` | Ana sayfa |
-| `/requirements/new/` | Yeni gereksinim analizi formu |
-| `/requirements/<id>/` | Analiz sonuç sayfası |
-| `/requirements/` | Geçmiş analizler listesi |
+The main AI backend uses FastAPI, LangGraph, and Google Gemini for multi-agent requirement analysis.
 
----
+**Tech Stack:**
 
-## Testleri Çalıştırma
+| Layer | Technology |
+|:---|:---|
+| **Backend** | Python, FastAPI, LangGraph |
+| **LLM** | Google Gemini 2.5 Flash |
+| **Database** | PostgreSQL & ChromaDB (Vector Store) |
+| **Frontend** | Vanilla JavaScript, Modern CSS3 |
 
-### Django Unit & Functional Testler
+**Run backend:**
 ```bash
-python manage.py test
-```
-
-### pytest ile
-```bash
-pytest
-```
-
-### BDD Acceptance Testleri (behave)
-```bash
-behave
+pip install -r requirements.txt
+uvicorn backend.main:app --reload
 ```
 
 ---
 
-## Deployment (Render.com)
+## Team
 
-1. Render.com üzerinde yeni bir **Web Service** oluştur.
-2. GitHub reposunu bağla.
-3. Build komutu: `pip install -r requirements.txt && python manage.py migrate --run-syncdb`
-4. Start komutu: `gunicorn ai_ra_saas.wsgi --log-file -`
-5. Environment: `DJANGO_SETTINGS_MODULE=ai_ra_saas.settings`
+| Role | Name |
+|:---|:---|
+| **Project Leader** | Muhammed Sina Gün |
+| **Tester** | Berk Kızgın |
+| **Developer** | Musa Ok |
+| **Developer** | Seyyid Muhammed Sun |
+| **Developer** | Şahin Kara |
 
-Deploy linki: https://ai-ra-saas.onrender.com
-
----
-
-## Ekip
-
-| Rol | İsim |
-|-----|------|
-| Takım Lideri | Muhammed Sina GÜN |
-| Geliştirici | Seyyid Muhammed SUN |
-| Geliştirici | Musa OK |
-| Geliştirici | Şahin KARA |
-| Test Uzmanı | Berk KIZGIN |
-| Eğitmen | Prof. Dr. Haluk Gümüşkaya |
-
----
-
-## Kurs Bilgisi
-
-HW5 — Yazılım Mühendisliği Dersi  
-İlk SaaS Prototip Teslimi
+**Supervisor:** Prof. Dr. Haluk Gümüşkaya — Istanbul Arel University, BLML210 Software Engineering
