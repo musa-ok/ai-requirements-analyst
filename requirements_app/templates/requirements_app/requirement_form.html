@@ -1,98 +1,95 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yeni Gereksinim Analizi - AI_RA</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'style.css' %}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yeni Gereksinim Analizi — AI_RA</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
-    <header class="site-header">
-        <div class="container">
-            <div class="logo">
-                <span class="logo-icon">&#9881;</span>
-                <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
-            </div>
-            <nav>
-                <a href="{% url 'home' %}">Ana Sayfa</a>
-                <a href="{% url 'requirement_new' %}" class="active">Yeni Analiz</a>
-                <a href="{% url 'requirement_list' %}">Geçmiş</a>
-            </nav>
-        </div>
-    </header>
 
-    <main>
-        <div class="container page-content">
-            <div class="page-header">
-                <h1>Gereksinim Analizi</h1>
-                <p>Yazılım fikrinizi doğal dilde girin. Sistem BDD formatında gereksinim ve Gherkin test senaryosu üretecektir.</p>
-            </div>
+<header class="site-header">
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">⚙</div>
+      <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
+    </div>
+    <nav>
+      <a href="{% url 'home' %}">Ana Sayfa</a>
+      <a href="{% url 'requirement_new' %}" class="active">Yeni Analiz</a>
+      <a href="{% url 'requirement_list' %}">Geçmiş</a>
+    </nav>
+  </div>
+</header>
 
-            {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                <div class="message message-{{ message.tags }}">{{ message }}</div>
-                {% endfor %}
-            </div>
+<main>
+  <div class="page-content">
+    <div class="page-header">
+      <h1>Gereksinim Analizi</h1>
+      <p>Yazılım fikrinizi doğal dilde girin. Sistem BDD ve Gherkin formatında analiz üretecektir.</p>
+    </div>
+
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="message message-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="display:grid; grid-template-columns: 1fr 340px; gap:1.5rem; align-items:start;">
+
+      <div class="form-container">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label for="id_project_name">{{ form.project_name.label }}</label>
+            {{ form.project_name }}
+            {% if form.project_name.errors %}
+            <div class="field-error">⚠ {% for e in form.project_name.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
+            <small class="field-hint">Mevcut bir proje adı girerseniz ilgili projeye eklenir.</small>
+          </div>
 
-            <div class="form-container">
-                <form method="post" novalidate>
-                    {% csrf_token %}
+          <div class="form-group">
+            <label for="id_raw_text">{{ form.raw_text.label }}</label>
+            {{ form.raw_text }}
+            {% if form.raw_text.errors %}
+            <div class="field-error">⚠ {% for e in form.raw_text.errors %}{{ e }}{% endfor %}</div>
+            {% endif %}
+            <small class="field-hint">En az 10 karakter. Aktörü (kullanıcı, sistem vb.) belirtmeniz daha kaliteli çıktı sağlar.</small>
+          </div>
 
-                    <div class="form-group">
-                        <label for="id_project_name">{{ form.project_name.label }}</label>
-                        {{ form.project_name }}
-                        {% if form.project_name.errors %}
-                        <div class="field-error">
-                            {% for error in form.project_name.errors %}
-                            <span>{{ error }}</span>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <small class="field-hint">Mevcut bir proje adı girerseniz ilgili projeye eklenir.</small>
-                    </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">⚡ Analiz Et</button>
+            <a href="{% url 'home' %}" class="btn btn-secondary" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← İptal</a>
+          </div>
+        </form>
+      </div>
 
-                    <div class="form-group">
-                        <label for="id_raw_text">{{ form.raw_text.label }}</label>
-                        {{ form.raw_text }}
-                        {% if form.raw_text.errors %}
-                        <div class="field-error">
-                            {% for error in form.raw_text.errors %}
-                            <span>{{ error }}</span>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
-                        <small class="field-hint">
-                            En az 10 karakter. Aktörü (kullanıcı, sistem vb.) belirtmeniz kaliteli çıktı sağlar.
-                        </small>
-                    </div>
+      <div class="info-box">
+        <h3>💡 Nasıl çalışır?</h3>
+        <ol>
+          <li>Proje adı ve yazılım fikrini girin.</li>
+          <li>Sistem QA doğrulaması yapar.</li>
+          <li><strong>BDD</strong> (Given-When-Then) üretilir.</li>
+          <li><strong>Gherkin</strong> test senaryosu oluşturulur.</li>
+          <li>Story Point tahmini yapılır.</li>
+          <li>Sonuç veritabanına kaydedilir.</li>
+        </ol>
+      </div>
 
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">&#9658; Analiz Et</button>
-                        <a href="{% url 'home' %}" class="btn btn-secondary">&#8592; İptal</a>
-                    </div>
-                </form>
-            </div>
+    </div>
+  </div>
+</main>
 
-            <div class="info-box">
-                <h3>Nasıl çalışır?</h3>
-                <ol>
-                    <li>Proje adını ve yazılım fikrinizi girin.</li>
-                    <li>Sistem hassas veri kontrolü ve QA doğrulaması yapar.</li>
-                    <li>BDD (Given-When-Then) formatında gereksinim üretilir.</li>
-                    <li>Gherkin test senaryosu ve Story Point tahmini oluşturulur.</li>
-                    <li>Sonuç veritabanına kaydedilir.</li>
-                </ol>
-            </div>
-        </div>
-    </main>
+<footer class="site-footer">
+  <div class="container">
+    <p>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
+  </div>
+</footer>
 
-    <footer class="site-footer">
-        <div class="container">
-            <p>AI_RA &mdash; Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
-        </div>
-    </footer>
 </body>
 </html>

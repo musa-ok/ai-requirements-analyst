@@ -1,115 +1,122 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI_RA - Yapay Zekâ Destekli Gereksinim Analisti</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'style.css' %}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
-    <header class="site-header">
-        <div class="container">
-            <div class="logo">
-                <span class="logo-icon">&#9881;</span>
-                <span class="logo-text">AI_RA</span>
-            </div>
-            <nav>
-                <a href="{% url 'home' %}">Ana Sayfa</a>
-                <a href="{% url 'requirement_new' %}">Yeni Analiz</a>
-                <a href="{% url 'requirement_list' %}">Geçmiş</a>
-            </nav>
+
+<header class="site-header">
+  <div class="container">
+    <div class="logo">
+      <div class="logo-icon">⚙</div>
+      <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
+    </div>
+    <nav>
+      <a href="{% url 'home' %}" class="active">Ana Sayfa</a>
+      <a href="{% url 'requirement_new' %}">Yeni Analiz</a>
+      <a href="{% url 'requirement_list' %}">Geçmiş</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">✦ HW5 — İlk SaaS Prototipi</div>
+      <h1>Yapay Zekâ Destekli<br><span class="accent">Gereksinim Analisti</span></h1>
+      <p class="hero-desc">
+        Doğal dilde yazdığınız yazılım fikirlerini BDD formatında gereksinime,
+        Gherkin test senaryosuna ve Story Point tahminlerine dönüştürün.
+      </p>
+      <div class="hero-actions">
+        <a href="{% url 'requirement_new' %}" class="btn btn-primary">⚡ Analizi Başlat</a>
+        <a href="{% url 'requirement_list' %}" class="btn btn-secondary">📋 Geçmiş Analizler</a>
+      </div>
+      <div class="stats-bar">
+        <div class="stat">
+          <span class="stat-value">{{ total_count }}</span>
+          <span class="stat-label">Analiz Edildi</span>
         </div>
-    </header>
-
-    <main>
-        <section class="hero">
-            <div class="container">
-                <h1>Yapay Zekâ Destekli<br><span class="accent">Gereksinim Analisti Sistemi</span></h1>
-                <p class="hero-desc">
-                    Doğal dilde ifade ettiğiniz yazılım fikirlerini; BDD formatında gereksinime,
-                    Gherkin test senaryosuna ve Story Point tahminlerine dönüştürün.
-                </p>
-                <div class="hero-actions">
-                    <a href="{% url 'requirement_new' %}" class="btn btn-primary">
-                        &#9658; Gereksinim Analizine Başla
-                    </a>
-                    <a href="{% url 'requirement_list' %}" class="btn btn-secondary">
-                        Geçmiş Analizleri Görüntüle
-                    </a>
-                </div>
-                <div class="stats-bar">
-                    <div class="stat">
-                        <span class="stat-value">{{ total_count }}</span>
-                        <span class="stat-label">Analiz Edildi</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value">BDD</span>
-                        <span class="stat-label">Çıktı Formatı</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value">Gherkin</span>
-                        <span class="stat-label">Test Senaryosu</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="features">
-            <div class="container">
-                <h2>Sistem Özellikleri</h2>
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">&#128196;</div>
-                        <h3>BDD Çıktısı</h3>
-                        <p>Given-When-Then formatında yapılandırılmış gereksinim üretimi.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">&#9989;</div>
-                        <h3>Gherkin Senaryosu</h3>
-                        <p>Test otomasyonuna temel oluşturan Gherkin formatında senaryo.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">&#128200;</div>
-                        <h3>Story Point Tahmini</h3>
-                        <p>Gereksinim karmaşıklığına göre otomatik story point hesabı.</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">&#128270;</div>
-                        <h3>QA Doğrulaması</h3>
-                        <p>Üretilen gereksinimlerin açıklık ve test edilebilirlik kontrolü.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        {% if recent_requirements %}
-        <section class="recent">
-            <div class="container">
-                <h2>Son Analizler</h2>
-                <div class="recent-list">
-                    {% for req in recent_requirements %}
-                    <div class="recent-item">
-                        <div class="recent-meta">
-                            <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
-                            <span class="project-name">{{ req.project.name }}</span>
-                            <span class="date">{{ req.created_at|date:"d.m.Y H:i" }}</span>
-                        </div>
-                        <p class="recent-text">{{ req.raw_text|truncatechars:100 }}</p>
-                        <a href="{% url 'requirement_detail' req.pk %}" class="btn btn-sm">Görüntüle</a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </section>
-        {% endif %}
-    </main>
-
-    <footer class="site-footer">
-        <div class="container">
-            <p>AI_RA &mdash; Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
-            <p class="team">Takım: M. Sina GÜN, S. M. SUN, Musa OK, Şahin KARA, Berk KIZGIN</p>
+        <div class="stat">
+          <span class="stat-value">BDD</span>
+          <span class="stat-label">Çıktı Formatı</span>
         </div>
-    </footer>
+        <div class="stat">
+          <span class="stat-value">Gherkin</span>
+          <span class="stat-label">Test Senaryosu</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">QA</span>
+          <span class="stat-label">Doğrulama</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="container">
+      <p class="section-label">Özellikler</p>
+      <h2 class="section-title">Ne işe yarar?</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📄</div>
+          <h3>BDD Çıktısı</h3>
+          <p>Given-When-Then formatında yapılandırılmış gereksinim üretimi ile ekip iletişimini güçlendirin.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">✅</div>
+          <h3>Gherkin Senaryosu</h3>
+          <p>Test otomasyonuna doğrudan entegre edilebilen Gherkin formatında test senaryoları.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Story Point Tahmini</h3>
+          <p>Gereksinim karmaşıklığına göre otomatik story point hesabı ile sprint planlamasını hızlandırın.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>QA Doğrulaması</h3>
+          <p>Üretilen gereksinimlerin açıklık, bütünlük ve test edilebilirlik açısından otomatik kontrolü.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECENT -->
+  {% if recent_requirements %}
+  <section class="recent">
+    <div class="container">
+      <h2 class="section-title">Son Analizler</h2>
+      <div class="recent-list">
+        {% for req in recent_requirements %}
+        <div class="recent-item">
+          <div class="recent-meta">
+            <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
+            <span class="project-name">{{ req.project.name }}</span>
+            <span class="date">{{ req.created_at|date:"d.m.Y H:i" }}</span>
+          </div>
+          <p class="recent-text">{{ req.raw_text|truncatechars:90 }}</p>
+          <a href="{% url 'requirement_detail' req.pk %}" class="btn btn-light btn-sm">Görüntüle →</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
+    <p class="team">M. Sina GÜN · S. M. SUN · Musa OK · Şahin KARA · Berk KIZGIN | Danışman: Prof. Dr. H. Gümüşkaya</p>
+  </div>
+</footer>
+
 </body>
 </html>
