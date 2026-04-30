@@ -1,0 +1,16 @@
+AI_RA - Yapay Zekâ Destekli Gereksinim Analisti Sistemi
+İlk SaaS Prototip - Deployment Bilgisi
+
+Deploy Linki:
+https://ai-ra-saas.onrender.com
+
+(Render ücretsiz katmanında ilk istek 30-60 saniye sürebilir.
+ Servis uyandıktan sonra normal hızda çalışır.)
+
+Deployment Platformu: Render.com (Free Tier)
+Deployment Tarihi: 2024
+Branch: main
+Build Komutu: pip install -r requirements.txt && python manage.py migrate --run-syncdb
+Start Komutu: gunicorn ai_ra_saas.wsgi --log-file -
+
+NOT: Bu dosya deploy tamamlandıktan sonra gerçek URL ile güncellenmelidir.

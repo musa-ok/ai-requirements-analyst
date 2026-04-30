@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiz Sonucu #{{ requirement.pk }} - AI_RA</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="logo">
+                <span class="logo-icon">&#9881;</span>
+                <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
+            </div>
+            <nav>
+                <a href="{% url 'home' %}">Ana Sayfa</a>
+                <a href="{% url 'requirement_new' %}">Yeni Analiz</a>
+                <a href="{% url 'requirement_list' %}">Geçmiş</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container page-content">
+            <div class="page-header">
+                <div class="header-row">
+                    <h1>Analiz Sonucu <span class="req-id">#{{ requirement.pk }}</span></h1>
+                    <span class="badge badge-{{ requirement.status }}">{{ requirement.get_status_display }}</span>
+                </div>
+                <p class="meta">
+                    <strong>Proje:</strong> {{ requirement.project.name }} &nbsp;|&nbsp;
+                    <strong>Tarih:</strong> {{ requirement.created_at|date:"d.m.Y H:i" }}
+                </p>
+            </div>
+
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="message message-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="result-grid">
+                <div class="result-card">
+                    <h2>&#128221; Ham Kullanıcı Girdisi</h2>
+                    <div class="result-content raw-text">{{ requirement.raw_text }}</div>
+                </div>
+
+                {% if requirement.result %}
+                <div class="result-card bdd-card">
+                    <h2>&#9989; BDD Çıktısı</h2>
+                    <div class="result-content bdd-output">{{ requirement.result.bdd_output|linebreaksbr }}</div>
+                </div>
+
+                <div class="result-card gherkin-card">
+                    <h2>&#128203; Gherkin Test Senaryosu</h2>
+                    <div class="result-content gherkin-output">
+                        <pre>{{ requirement.result.gherkin_output }}</pre>
+                    </div>
+                </div>
+
+                <div class="result-card qa-card">
+                    <h2>&#128270; QA Doğrulama Sonucu</h2>
+                    <div class="result-content">{{ requirement.result.qa_result }}</div>
+                </div>
+
+                <div class="result-card sp-card">
+                    <h2>&#128200; Story Point Tahmini</h2>
+                    <div class="story-point-display">
+                        <span class="sp-value">{{ requirement.result.story_point }}</span>
+                        <span class="sp-label">Story Point</span>
+                    </div>
+                    <p class="sp-note">
+                        {% if requirement.result.story_point <= 2 %}Basit gereksinim — düşük efor.
+                        {% elif requirement.result.story_point <= 5 %}Orta karmaşıklıkta gereksinim.
+                        {% else %}Karmaşık gereksinim — kapsamlı analiz önerilir.
+                        {% endif %}
+                    </p>
+                </div>
+                {% else %}
+                <div class="result-card">
+                    <p>Henüz analiz sonucu bulunmamaktadır.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="detail-actions">
+                <a href="{% url 'requirement_new' %}" class="btn btn-primary">&#43; Yeni Analiz</a>
+                <a href="{% url 'requirement_list' %}" class="btn btn-secondary">&#8592; Geçmiş Liste</a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>AI_RA &mdash; Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
+        </div>
+    </footer>
+</body>
+</html>
