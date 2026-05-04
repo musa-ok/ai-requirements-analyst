@@ -54,10 +54,10 @@
                 <div class="output-header">
                     <span>Analiz Çıktısı (Gherkin & Story Point)</span>
                     <div class="export-options">
-                        <button id="githubBtn" class="export-btn">GitHub'a Aktar</button>
-                        <button id="jiraBtn" class="export-btn">Jira'ya At</button>
-                        <button id="pdfBtn" class="export-btn">PDF İndir</button>
-                        <button id="wordBtn" class="export-btn">Word İndir</button>
+                        <button id="jiraBtn" type="button" class="export-btn export-btn--jira">Export to Jira</button>
+                        <button id="githubBtn" type="button" class="export-btn export-btn--github">Export to GitHub</button>
+                        <button id="pdfBtn" type="button" class="export-btn export-btn--doc">PDF İndir</button>
+                        <button id="wordBtn" type="button" class="export-btn export-btn--doc">Word İndir</button>
                     </div>
                 </div>
                 <div id="resultDisplay" class="result-box">
@@ -82,28 +82,68 @@
     </div>
 
     <div id="settingsModal" class="settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-        <div class="settings-panel">
+        <div class="settings-panel settings-panel--wide">
             <div class="settings-head">
-                <h2 id="settingsTitle">Ayarlar</h2>
-                <button id="closeSettingsBtn" class="export-btn" type="button">Kapat</button>
+                <h2 id="settingsTitle">Yapılandırma (stateless)</h2>
+                <div class="settings-actions">
+                    <button id="saveSettingsBtn" class="primary-btn settings-save" type="button">Kaydet</button>
+                    <button id="closeSettingsBtn" class="export-btn" type="button">Kapat</button>
+                </div>
             </div>
-            <p class="settings-desc">API Key ve RAG ayarlari burada yonetilecek.</p>
-            <div class="settings-grid">
+            <p class="settings-desc">
+                Kimlik bilgileri yalnızca tarayıcıda <strong>localStorage</strong> içinde saklanır; sunucuda oturum veritabanı yoktur.
+                İsterseniz aşağıdaki değerler istek gövdesi ve güvenli başlıklar ile API'ye iletilir.
+            </p>
+            <div class="settings-grid settings-grid--two">
                 <label>
-                    API Key
-                    <input id="apiKeyInput" type="text" placeholder="sk-..." />
+                    Backend taban URL (Render vb.)
+                    <input id="settingBackendUrl" type="url" autocomplete="off" placeholder="https://api-ornek.onrender.com" />
                 </label>
                 <label>
-                    API Key'i Hatırla
-                    <input id="rememberApiKey" type="checkbox" checked />
+                    Gemini API Key
+                    <input id="settingGeminiKey" type="password" autocomplete="off" placeholder="Google AI Studio anahtarı" />
                 </label>
                 <label>
-                    Varsayilan RAG Koleksiyonu
-                    <input id="ragCollectionInput" type="text" placeholder="product-docs-v1" />
+                    Varsayılan RAG koleksiyonu
+                    <input id="settingRagCollection" type="text" autocomplete="off" placeholder="default" />
+                </label>
+                <label>
+                    Jira site URL
+                    <input id="settingJiraUrl" type="url" autocomplete="off" placeholder="https://alanadiniz.atlassian.net" />
+                </label>
+                <label>
+                    Jira e-posta
+                    <input id="settingJiraEmail" type="email" autocomplete="off" placeholder="you@company.com" />
+                </label>
+                <label>
+                    Jira API token
+                    <input id="settingJiraToken" type="password" autocomplete="off" />
+                </label>
+                <label>
+                    Jira proje anahtarı
+                    <input id="settingJiraProject" type="text" autocomplete="off" placeholder="PROJ" />
+                </label>
+                <label>
+                    GitHub kişisel erişim token (repo)
+                    <input id="settingGithubToken" type="password" autocomplete="off" />
+                </label>
+                <label>
+                    GitHub repo (owner/repo)
+                    <input id="settingGithubRepo" type="text" autocomplete="off" placeholder="ornek-org/ai-ra" />
+                </label>
+                <label>
+                    GitHub dosya yolu
+                    <input id="settingGithubPath" type="text" autocomplete="off" placeholder="exports/analysis.md" />
+                </label>
+                <label>
+                    GitHub dal
+                    <input id="settingGithubBranch" type="text" autocomplete="off" placeholder="main" />
                 </label>
             </div>
         </div>
     </div>
+
+    <div id="toastHost" class="toast-host" aria-live="polite"></div>
     <script src="script.js"></script>
 </body>
 </html>

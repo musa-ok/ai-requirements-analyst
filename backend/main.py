@@ -6,12 +6,13 @@ import re
 from datetime import datetime
 from io import BytesIO
 from textwrap import wrap
-from typing import Dict, List, Literal, Optional, TypedDict
+from typing import Dict, List, Literal, Mapping, TypedDict
 from uuid import uuid4
 
 import requests
 from docx import Document
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph
@@ -73,8 +74,21 @@ class JiraExportRequest(BaseModel):
 
 
 app = FastAPI(title="AI-RA Backend", version="2.0.0", description="Stateless AI-Driven Requirements Analyst API")
+
+_origins_raw = os.environ.get("CORS_ALLOW_ORIGINS", "*").strip()
+_cors_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()] or ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 _chroma_client = None
 session_store: Dict[str, Dict[str, dict]] = {}
+
+_FIB_STORY_POINTS = frozenset({1, 2, 3, 5, 8, 13})
 
 
 def _get_chroma_client():
@@ -114,19 +128,6 @@ def _build_markdown(analysis: dict) -> str:
     return "\n".join(lines).strip()
 
 
-def _estimate_story_points(requirement_text: str) -> int:
-    length = len(requirement_text.strip())
-    if length < 80:
-        return 2
-    if length < 180:
-        return 3
-    if length < 320:
-        return 5
-    if length < 520:
-        return 8
-    return 13
-
-
 def _extract_json_payload(text: str) -> dict:
     cleaned = text.strip()
     try:
@@ -139,6 +140,49 @@ def _extract_json_payload(text: str) -> dict:
     if not match:
         raise ValueError("Model JSON ciktisi ayrisamadi.")
     return json.loads(match.group(1))
+
+
+def _normalize_analyst_payload(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("Model ciktisi bir JSON nesnesi olmalidir.")
+    ac = data.get("acceptance_criteria")
+    gs = data.get("gherkin_scenarios")
+    sp = data.get("story_points")
+    if not isinstance(ac, list) or not ac:
+        raise ValueError("acceptance_criteria bos veya gecersiz.")
+    if not all(isinstance(x, str) and x.strip() for x in ac):
+        raise ValueError("acceptance_criteria tum elemanlari dolu metin olmalidir.")
+    if len(ac) < 3 or len(ac) > 7:
+        raise ValueError("acceptance_criteria 3 ile 7 madde arasinda olmalidir.")
+    if not isinstance(gs, list) or not gs:
+        raise ValueError("gherkin_scenarios bos veya gecersiz.")
+    if not all(isinstance(x, str) and x.strip() for x in gs):
+        raise ValueError("gherkin_scenarios tum elemanlari dolu metin olmalidir.")
+    if len(gs) < 1 or len(gs) > 3:
+        raise ValueError("gherkin_scenarios 1 ile 3 blok arasinda olmalidir.")
+    try:
+        sp_int = int(sp)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("story_points tamsayi olmalidir.") from exc
+    if sp_int not in _FIB_STORY_POINTS:
+        raise ValueError("story_points yalnizca 1, 2, 3, 5, 8 veya 13 olabilir.")
+    return {
+        "acceptance_criteria": [x.strip() for x in ac],
+        "gherkin_scenarios": [x.strip() for x in gs],
+        "story_points": sp_int,
+    }
+
+
+def _normalize_qa_payload(data: dict) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("QA model ciktisi bir JSON nesnesi olmalidir.")
+    status = data.get("qa_status")
+    feedback = data.get("qa_feedback")
+    if status not in {"passed", "needs_review"}:
+        raise ValueError("qa_status yalnizca passed veya needs_review olabilir.")
+    if not isinstance(feedback, str) or not feedback.strip():
+        raise ValueError("qa_feedback bos olamaz.")
+    return {"qa_status": status, "qa_feedback": feedback.strip()}
 
 
 def _build_llm(api_key: str) -> ChatGoogleGenerativeAI:
@@ -165,15 +209,10 @@ def analyst_agent(state: AnalysisState) -> AnalysisState:
         f"RAG Context:\n{rag_context or 'No additional context'}\n"
     )
     response = llm.invoke(prompt)
-    data = _extract_json_payload(response.content if isinstance(response.content, str) else str(response.content))
-    story_points = int(data.get("story_points", _estimate_story_points(requirement_text)))
-    if story_points not in {1, 2, 3, 5, 8, 13}:
-        story_points = _estimate_story_points(requirement_text)
-    return {
-        "acceptance_criteria": data.get("acceptance_criteria", []),
-        "gherkin_scenarios": data.get("gherkin_scenarios", []),
-        "story_points": story_points,
-    }
+    raw = response.content if isinstance(response.content, str) else str(response.content)
+    data = _extract_json_payload(raw)
+    normalized = _normalize_analyst_payload(data)
+    return normalized
 
 
 def qa_agent(state: AnalysisState) -> AnalysisState:
@@ -188,11 +227,9 @@ def qa_agent(state: AnalysisState) -> AnalysisState:
         f"Story Points:\n{state.get('story_points')}\n"
     )
     response = llm.invoke(prompt)
-    data = _extract_json_payload(response.content if isinstance(response.content, str) else str(response.content))
-    status = data.get("qa_status", "needs_review")
-    if status not in {"passed", "needs_review"}:
-        status = "needs_review"
-    return {"qa_status": status, "qa_feedback": str(data.get("qa_feedback", "QA degerlendirmesi alinamadi."))}
+    raw = response.content if isinstance(response.content, str) else str(response.content)
+    data = _extract_json_payload(raw)
+    return _normalize_qa_payload(data)
 
 
 graph = StateGraph(AnalysisState)
@@ -241,10 +278,12 @@ async def upload_rag_pdf(
 
 
 @app.post("/analyze", response_model=AnalysisResponse, tags=["analysis"])
-def analyze_requirement(request: AnalyzeRequest) -> AnalysisResponse:
-    rag_context = _fetch_rag_context(request.rag_collection, request.requirement_text)
+def analyze_requirement(http_request: Request, body: AnalyzeRequest) -> AnalysisResponse:
+    rag_context = _fetch_rag_context(body.rag_collection, body.requirement_text)
+    header_key = (http_request.headers.get("x-gemini-api-key") or "").strip()
     api_key = (
-        request.api_key.strip()
+        body.api_key.strip()
+        or header_key
         or os.environ.get("TEST_GEMINI_API_KEY", "").strip()
         or os.environ.get("GOOGLE_API_KEY", "").strip()
         or os.environ.get("GEMINI_API_KEY", "").strip()
@@ -254,8 +293,8 @@ def analyze_requirement(request: AnalyzeRequest) -> AnalysisResponse:
     try:
         result = analysis_workflow.invoke(
             {
-                "project_name": request.project_name,
-                "requirement_text": request.requirement_text,
+                "project_name": body.project_name,
+                "requirement_text": body.requirement_text,
                 "rag_context": rag_context,
                 "api_key": api_key,
             }
@@ -264,10 +303,10 @@ def analyze_requirement(request: AnalyzeRequest) -> AnalysisResponse:
         raise HTTPException(status_code=502, detail=f"LLM analizi basarisiz: {exc}") from exc
     analysis_id = str(uuid4())
     payload = {
-        "session_id": request.session_id,
+        "session_id": body.session_id,
         "analysis_id": analysis_id,
-        "project_name": request.project_name,
-        "requirement_text": request.requirement_text,
+        "project_name": body.project_name,
+        "requirement_text": body.requirement_text,
         "acceptance_criteria": result["acceptance_criteria"],
         "gherkin_scenarios": result["gherkin_scenarios"],
         "story_points": result["story_points"],
@@ -276,7 +315,7 @@ def analyze_requirement(request: AnalyzeRequest) -> AnalysisResponse:
         "rag_context_used": rag_context,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
-    session_store.setdefault(request.session_id, {})[analysis_id] = payload
+    session_store.setdefault(body.session_id, {})[analysis_id] = payload
     return AnalysisResponse(**payload)
 
 
@@ -337,37 +376,79 @@ def export_word(session_id: str, analysis_id: str):
     )
 
 
+def _merge_github_export(body: GithubExportRequest, headers: Mapping[str, str]) -> GithubExportRequest:
+    data = body.model_dump()
+    if not str(data.get("token", "")).strip():
+        data["token"] = (headers.get("x-github-token") or "").strip()
+    if not str(data.get("repository", "")).strip():
+        data["repository"] = (headers.get("x-github-repository") or "").strip()
+    return GithubExportRequest(**data)
+
+
+def _merge_jira_export(body: JiraExportRequest, headers: Mapping[str, str]) -> JiraExportRequest:
+    data = body.model_dump()
+    pairs = [
+        ("jira_base_url", "x-jira-base-url"),
+        ("email", "x-jira-email"),
+        ("api_token", "x-jira-api-token"),
+        ("project_key", "x-jira-project-key"),
+    ]
+    for field, hdr in pairs:
+        if not str(data.get(field, "")).strip():
+            data[field] = (headers.get(hdr) or "").strip()
+    return JiraExportRequest(**data)
+
+
 @app.post("/export/github/{session_id}", tags=["export"])
-def export_to_github(session_id: str, request: GithubExportRequest) -> dict:
-    analysis = session_store.get(session_id, {}).get(request.analysis_id)
+def export_to_github(session_id: str, http_request: Request, body: GithubExportRequest) -> dict:
+    export_req = _merge_github_export(body, http_request.headers)
+    if not export_req.repository.strip() or not export_req.token.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="GitHub export icin repository ve token zorunludur.",
+        )
+    analysis = session_store.get(session_id, {}).get(export_req.analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analiz bulunamadi.")
-    api_url = f"https://api.github.com/repos/{request.repository}/contents/{request.file_path}"
+    api_url = f"https://api.github.com/repos/{export_req.repository}/contents/{export_req.file_path}"
     content = _build_markdown(analysis).encode("utf-8")
     payload = {
-        "message": request.commit_message,
+        "message": export_req.commit_message,
         "content": __import__("base64").b64encode(content).decode("utf-8"),
-        "branch": request.branch,
+        "branch": export_req.branch,
     }
-    headers = {"Authorization": f"Bearer {request.token}", "Accept": "application/vnd.github+json"}
+    headers = {"Authorization": f"Bearer {export_req.token}", "Accept": "application/vnd.github+json"}
     response = requests.put(api_url, json=payload, headers=headers, timeout=15)
     if response.status_code not in (200, 201):
         raise HTTPException(status_code=400, detail=f"GitHub export hatasi: {response.text}")
-    return {"status": "ok", "target": request.repository, "path": request.file_path}
+    return {"status": "ok", "target": export_req.repository, "path": export_req.file_path}
 
 
 @app.post("/export/jira/{session_id}", tags=["export"])
-def export_to_jira(session_id: str, request: JiraExportRequest) -> dict:
-    analysis = session_store.get(session_id, {}).get(request.analysis_id)
+def export_to_jira(session_id: str, http_request: Request, body: JiraExportRequest) -> dict:
+    export_req = _merge_jira_export(body, http_request.headers)
+    if not all(
+        [
+            export_req.jira_base_url.strip(),
+            export_req.email.strip(),
+            export_req.api_token.strip(),
+            export_req.project_key.strip(),
+        ]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Jira export icin base URL, email, token ve project_key zorunludur.",
+        )
+    analysis = session_store.get(session_id, {}).get(export_req.analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analiz bulunamadi.")
-    issue_url = f"{request.jira_base_url.rstrip('/')}/rest/api/3/issue"
+    issue_url = f"{export_req.jira_base_url.rstrip('/')}/rest/api/3/issue"
     markdown = _build_markdown(analysis)
     payload = {
         "fields": {
-            "project": {"key": request.project_key},
-            "summary": f"AI-RA Analysis {request.analysis_id}",
-            "issuetype": {"name": request.issue_type},
+            "project": {"key": export_req.project_key},
+            "summary": f"AI-RA Analysis {export_req.analysis_id}",
+            "issuetype": {"name": export_req.issue_type},
             "description": {
                 "type": "doc",
                 "version": 1,
@@ -380,7 +461,7 @@ def export_to_jira(session_id: str, request: JiraExportRequest) -> dict:
             },
         }
     }
-    response = requests.post(issue_url, json=payload, auth=(request.email, request.api_token), timeout=15)
+    response = requests.post(issue_url, json=payload, auth=(export_req.email, export_req.api_token), timeout=15)
     if response.status_code not in (200, 201):
         raise HTTPException(status_code=400, detail=f"Jira export hatasi: {response.text}")
     data = response.json()

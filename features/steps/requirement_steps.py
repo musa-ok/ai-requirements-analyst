@@ -11,9 +11,28 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ai_ra_saas.settings')
 django.setup()
 
+from unittest.mock import patch
+
 from behave import given, when, then
 from django.test import Client
-from requirements_app.services import generate_bdd_output, generate_gherkin_output
+
+_BEHAVE_ANALYSIS_STUB = {
+    "bdd_output": (
+        "- Given kullanıcı geçerli kimlik bilgileri ile giriş yapar\n"
+        "- When kimlik doğrulaması başarılı olur\n"
+        "- Then kullanıcı ana panele yönlendirilir"
+    ),
+    "gherkin_output": (
+        "Feature: Giris\n"
+        "  Scenario: Basarili giris\n"
+        "    Given kullanici kayitlidir\n"
+        "    When sifre ile giris yapar\n"
+        "    Then oturum acilir\n"
+    ),
+    "qa_result": "[passed] Senaryolar tutarli.",
+    "qa_valid": True,
+    "story_point": 3,
+}
 
 
 @given('kullanıcı gereksinim giriş sayfasındadır')
@@ -41,7 +60,8 @@ def step_user_clicks_analyze(context):
         'project_name': context.project_name or 'Test Projesi',
         'raw_text': context.requirement_text or '',
     }
-    context.response = context.client.post('/requirements/new/', data)
+    with patch("requirements_app.views.analyze_requirement", return_value=_BEHAVE_ANALYSIS_STUB):
+        context.response = context.client.post('/requirements/new/', data)
 
 
 @when('kullanıcı boş metin gönderir')
@@ -94,12 +114,9 @@ def step_no_requirement_created(context):
 
 @given('kullanıcı geçerli bir gereksinim analizi tamamlamıştır')
 def step_valid_analysis_done(context):
-    raw_text = "Kullanıcı sisteme e-posta ve şifre ile giriş yapabilmelidir."
-    bdd = generate_bdd_output(raw_text)
-    gherkin = generate_gherkin_output(raw_text)
     context.result = {
-        "bdd_output": bdd,
-        "gherkin_output": gherkin,
+        "bdd_output": _BEHAVE_ANALYSIS_STUB["bdd_output"],
+        "gherkin_output": _BEHAVE_ANALYSIS_STUB["gherkin_output"],
     }
 
 

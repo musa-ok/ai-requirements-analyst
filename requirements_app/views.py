@@ -35,7 +35,11 @@ def requirement_new(request):
         if form.is_valid():
             project_name = form.cleaned_data['project_name']
             raw_text = form.cleaned_data['raw_text']
-            analysis = analyze_requirement(raw_text)
+            try:
+                analysis = analyze_requirement(raw_text, project_name=project_name)
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return render(request, 'requirements_app/requirement_form.html', {'form': form})
             all_items = _get_session_items(request)
             next_id = (all_items[-1]['id'] + 1) if all_items else 1
             all_items.append({
