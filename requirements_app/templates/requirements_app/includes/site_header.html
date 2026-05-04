@@ -1,0 +1,169 @@
+{% load static %}
+<header class="site-header">
+  <div class="container">
+    <div class="logo">
+      <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
+    </div>
+    <nav class="site-nav">
+      <a href="{% url 'home' %}" {% if active_nav == 'home' %}class="active"{% endif %}>Ana Sayfa</a>
+      <a href="{% url 'requirement_new' %}" {% if active_nav == 'new' %}class="active"{% endif %}>Yeni Analiz</a>
+      <a href="{% url 'requirement_list' %}" {% if active_nav == 'list' %}class="active"{% endif %}>Geçmiş</a>
+      <button type="button" class="btn-nav-settings" id="openSettingsModalBtn" aria-haspopup="dialog" aria-controls="raSettingsModal">⚙️ Ayarlar</button>
+    </nav>
+  </div>
+</header>
+
+<div id="raSettingsModal" class="ra-settings-modal ra-settings-modal--hidden" role="dialog" aria-modal="true" aria-labelledby="raSettingsTitle">
+  <div class="ra-settings-backdrop" data-close-settings></div>
+  <div class="ra-settings-dialog ra-settings-dialog--wide">
+    <div class="ra-settings-head">
+      <h2 id="raSettingsTitle">Ayarlar</h2>
+      <button type="button" class="ra-settings-close" data-close-settings aria-label="Kapat">×</button>
+    </div>
+    <p class="ra-settings-lead">Kimlik bilgileri yalnızca tarayıcınızda saklanır (localStorage). Üretim ortamında tarayıcı profillerini ve paylaşımlı cihazları göz önünde bulundurun.</p>
+
+    <div class="ra-settings-fields">
+      <label class="ra-field">
+        <span>Gemini API Key <em class="ra-req">zorunlu</em></span>
+        <input type="password" id="raGeminiKey" autocomplete="off" placeholder="Google AI Studio anahtarı" />
+      </label>
+      <label class="ra-field">
+        <span>Jira Base URL</span>
+        <input type="url" id="raJiraUrl" autocomplete="off" placeholder="https://sirket.atlassian.net" />
+      </label>
+      <label class="ra-field">
+        <span>Jira Email</span>
+        <input type="email" id="raJiraEmail" autocomplete="off" placeholder="ad.soyad@sirket.com" />
+      </label>
+      <label class="ra-field">
+        <span>Jira API Token</span>
+        <input type="password" id="raJiraToken" autocomplete="off" />
+      </label>
+      <label class="ra-field">
+        <span>GitHub Token</span>
+        <input type="password" id="raGithubToken" autocomplete="off" placeholder="Kişisel erişim token (PAT)" />
+      </label>
+    </div>
+
+    <details class="ra-advanced" id="raAdvancedPanel">
+      <summary class="ra-advanced-summary">Gelişmiş — API adresi, RAG ve export</summary>
+      <div class="ra-advanced-grid">
+        <label class="ra-field">
+          <span>Backend API taban URL</span>
+          <input type="url" id="raBackendUrl" autocomplete="off" placeholder="https://api-sizin.onrender.com" />
+        </label>
+        <label class="ra-field">
+          <span>RAG koleksiyon adı</span>
+          <input type="text" id="raRagCollection" autocomplete="off" placeholder="default" />
+        </label>
+        <label class="ra-field">
+          <span>Jira proje anahtarı</span>
+          <input type="text" id="raJiraProject" autocomplete="off" placeholder="TEAM, PROJ vb." />
+        </label>
+        <label class="ra-field">
+          <span>GitHub repository (owner/repo)</span>
+          <input type="text" id="raGithubRepo" autocomplete="off" placeholder="kurum/urun-adi" />
+        </label>
+        <label class="ra-field">
+          <span>GitHub dosya yolu</span>
+          <input type="text" id="raGithubPath" autocomplete="off" placeholder="exports/analysis.md" />
+        </label>
+        <label class="ra-field">
+          <span>GitHub dal</span>
+          <input type="text" id="raGithubBranch" autocomplete="off" placeholder="main" />
+        </label>
+      </div>
+    </details>
+
+    <div class="ra-settings-actions">
+      <button type="button" class="btn btn-primary" id="raSettingsSaveBtn">Kaydet</button>
+      <button type="button" class="btn btn-secondary" data-close-settings>İptal</button>
+    </div>
+  </div>
+</div>
+
+<div id="raToast" class="ra-toast ra-toast--hidden" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var STORAGE_KEY = "ai_ra_user_config";
+  function defaults() {
+    return {
+      gemini_api_key: "",
+      backend_base_url: "",
+      jira_base_url: "",
+      jira_email: "",
+      jira_api_token: "",
+      jira_project_key: "",
+      github_token: "",
+      github_repo: "",
+      github_default_path: "exports/analysis.md",
+      github_branch: "main",
+      rag_collection: "default",
+    };
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaults();
+      return Object.assign(defaults(), JSON.parse(raw));
+    } catch (e) {
+      return defaults();
+    }
+  }
+  function save(partial) {
+    var merged = Object.assign(load(), partial || {});
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    return merged;
+  }
+  function showToast(msg) {
+    var el = document.getElementById("raToast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove("ra-toast--hidden");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () {
+      el.classList.add("ra-toast--hidden");
+    }, 3200);
+  }
+  function openModal() {
+    var s = load();
+    document.getElementById("raGeminiKey").value = s.gemini_api_key || "";
+    document.getElementById("raJiraUrl").value = s.jira_base_url || "";
+    document.getElementById("raJiraEmail").value = s.jira_email || "";
+    document.getElementById("raJiraToken").value = s.jira_api_token || "";
+    document.getElementById("raGithubToken").value = s.github_token || "";
+    document.getElementById("raBackendUrl").value = s.backend_base_url || "";
+    document.getElementById("raRagCollection").value = s.rag_collection || "default";
+    document.getElementById("raJiraProject").value = s.jira_project_key || "";
+    document.getElementById("raGithubRepo").value = s.github_repo || "";
+    document.getElementById("raGithubPath").value = s.github_default_path || "exports/analysis.md";
+    document.getElementById("raGithubBranch").value = s.github_branch || "main";
+    document.getElementById("raSettingsModal").classList.remove("ra-settings-modal--hidden");
+  }
+  function closeModal() {
+    document.getElementById("raSettingsModal").classList.add("ra-settings-modal--hidden");
+  }
+  document.getElementById("openSettingsModalBtn").addEventListener("click", openModal);
+  document.querySelectorAll("[data-close-settings]").forEach(function (node) {
+    node.addEventListener("click", closeModal);
+  });
+  document.getElementById("raSettingsSaveBtn").addEventListener("click", function () {
+    save({
+      gemini_api_key: document.getElementById("raGeminiKey").value.trim(),
+      jira_base_url: document.getElementById("raJiraUrl").value.trim(),
+      jira_email: document.getElementById("raJiraEmail").value.trim(),
+      jira_api_token: document.getElementById("raJiraToken").value.trim(),
+      github_token: document.getElementById("raGithubToken").value.trim(),
+      backend_base_url: document.getElementById("raBackendUrl").value.trim(),
+      rag_collection: document.getElementById("raRagCollection").value.trim() || "default",
+      jira_project_key: document.getElementById("raJiraProject").value.trim(),
+      github_repo: document.getElementById("raGithubRepo").value.trim(),
+      github_default_path: document.getElementById("raGithubPath").value.trim() || "exports/analysis.md",
+      github_branch: document.getElementById("raGithubBranch").value.trim() || "main",
+    });
+    showToast("Ayarlar kaydedildi.");
+    closeModal();
+  });
+})();
+</script>

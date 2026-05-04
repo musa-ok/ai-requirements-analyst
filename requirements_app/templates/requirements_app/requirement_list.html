@@ -2,26 +2,14 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Geçmiş Analizler — AI_RA</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
 
-<header class="site-header">
-  <div class="container">
-    <div class="logo">
-      <div class="logo-icon">⚙</div>
-      <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
-    </div>
-    <nav>
-      <a href="{% url 'home' %}">Ana Sayfa</a>
-      <a href="{% url 'requirement_new' %}">Yeni Analiz</a>
-      <a href="{% url 'requirement_list' %}" class="active">Geçmiş</a>
-    </nav>
-  </div>
-</header>
+{% include 'requirements_app/includes/site_header.html' with active_nav='list' %}
 
 <main>
   <div class="page-content">
@@ -79,7 +67,7 @@
 
 <footer class="site-footer">
   <div class="container">
-    <p>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
+    <p>AI_RA — Kurumsal gereksinim analizi ve kalite otomasyonu &copy; 2026</p>
   </div>
 </footer>
 

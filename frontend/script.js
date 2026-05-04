@@ -12,6 +12,11 @@ const settingsModal = document.getElementById("settingsModal");
 const closeSettingsBtn = document.getElementById("closeSettingsBtn");
 const saveSettingsBtn = document.getElementById("saveSettingsBtn");
 
+const appRoot = document.getElementById("appRoot");
+const navBackdrop = document.getElementById("navBackdrop");
+const navMenuToggle = document.getElementById("navMenuToggle");
+const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
+
 const resultDisplay = document.getElementById("resultDisplay");
 const placeholderText = resultDisplay.querySelector(".placeholder-text");
 const skeleton = document.getElementById("skeleton");
@@ -25,24 +30,62 @@ const micBtn = document.getElementById("micBtn");
 const ragUploadInput = document.getElementById("rag-upload");
 
 const settingGeminiKey = document.getElementById("settingGeminiKey");
-const settingBackendUrl = document.getElementById("settingBackendUrl");
 const settingJiraUrl = document.getElementById("settingJiraUrl");
 const settingJiraEmail = document.getElementById("settingJiraEmail");
 const settingJiraToken = document.getElementById("settingJiraToken");
-const settingJiraProject = document.getElementById("settingJiraProject");
 const settingGithubToken = document.getElementById("settingGithubToken");
+const settingBackendUrl = document.getElementById("settingBackendUrl");
+const settingRagCollection = document.getElementById("settingRagCollection");
+const settingJiraProject = document.getElementById("settingJiraProject");
 const settingGithubRepo = document.getElementById("settingGithubRepo");
 const settingGithubPath = document.getElementById("settingGithubPath");
 const settingGithubBranch = document.getElementById("settingGithubBranch");
-const settingRagCollection = document.getElementById("settingRagCollection");
 
 const SESSION_STORAGE_KEY = "ai_ra_session_id";
 const SETTINGS_STORAGE_KEY = "ai_ra_user_config";
+const GEMINI_GUARD_MESSAGE =
+    "Lütfen analiz yapmadan önce Ayarlar menüsünden Gemini API anahtarınızı girin.";
 
 const sessionId = localStorage.getItem(SESSION_STORAGE_KEY) || crypto.randomUUID();
 localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 
 let lastAnalysisId = null;
+
+function closeNavDrawer() {
+    if (!appRoot) return;
+    appRoot.classList.remove("is-nav-open");
+    document.body.classList.remove("nav-drawer-open");
+    if (navMenuToggle) {
+        navMenuToggle.setAttribute("aria-expanded", "false");
+        navMenuToggle.setAttribute("aria-label", "Menüyü aç");
+    }
+    if (navBackdrop) navBackdrop.setAttribute("aria-hidden", "true");
+}
+
+function openNavDrawer() {
+    if (!appRoot) return;
+    appRoot.classList.add("is-nav-open");
+    document.body.classList.add("nav-drawer-open");
+    if (navMenuToggle) {
+        navMenuToggle.setAttribute("aria-expanded", "true");
+        navMenuToggle.setAttribute("aria-label", "Menüyü kapat");
+    }
+    if (navBackdrop) navBackdrop.setAttribute("aria-hidden", "false");
+}
+
+function toggleNavDrawer() {
+    if (!appRoot) return;
+    if (appRoot.classList.contains("is-nav-open")) closeNavDrawer();
+    else openNavDrawer();
+}
+
+if (navMenuToggle) navMenuToggle.addEventListener("click", toggleNavDrawer);
+if (navBackdrop) navBackdrop.addEventListener("click", closeNavDrawer);
+if (sidebarCloseBtn) sidebarCloseBtn.addEventListener("click", closeNavDrawer);
+
+window.matchMedia("(min-width: 769px)").addEventListener("change", (e) => {
+    if (e.matches) closeNavDrawer();
+});
 
 function defaultSettings() {
     return {
@@ -76,6 +119,18 @@ function persistSettings(partial) {
     return merged;
 }
 
+/** Analiz öncesi: yalnızca localStorage üzerinden doğrulama */
+function getGeminiKeyFromStorage() {
+    try {
+        const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (!raw) return "";
+        const o = JSON.parse(raw);
+        return String(o.gemini_api_key || "").trim();
+    } catch {
+        return "";
+    }
+}
+
 function getBackendBaseUrl() {
     const trimmed = loadSettings().backend_base_url.trim();
     if (trimmed) return trimmed.replace(/\/$/, "");
@@ -85,16 +140,16 @@ function getBackendBaseUrl() {
 function populateSettingsForm() {
     const s = loadSettings();
     settingGeminiKey.value = s.gemini_api_key;
-    settingBackendUrl.value = s.backend_base_url;
     settingJiraUrl.value = s.jira_base_url;
     settingJiraEmail.value = s.jira_email;
     settingJiraToken.value = s.jira_api_token;
-    settingJiraProject.value = s.jira_project_key;
     settingGithubToken.value = s.github_token;
+    settingBackendUrl.value = s.backend_base_url;
+    settingRagCollection.value = s.rag_collection || "default";
+    settingJiraProject.value = s.jira_project_key;
     settingGithubRepo.value = s.github_repo;
     settingGithubPath.value = s.github_default_path || "exports/analysis.md";
     settingGithubBranch.value = s.github_branch || "main";
-    settingRagCollection.value = s.rag_collection || "default";
 }
 
 const projectData = {
@@ -176,6 +231,16 @@ micBtn.addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        if (!settingsModal.classList.contains("hidden")) {
+            settingsModal.classList.add("hidden");
+            event.preventDefault();
+            return;
+        }
+        closeNavDrawer();
+        return;
+    }
+
     const isEnter = event.key === "Enter";
     const isModifierPressed = event.metaKey || event.ctrlKey;
 
@@ -201,11 +266,13 @@ analyzeBtn.addEventListener("click", async () => {
         return;
     }
 
-    const settings = loadSettings();
-    if (!settings.gemini_api_key.trim()) {
-        showToast('Gemini API anahtari eksik. "Ayarlar" icinden ekleyin.', "error");
+    if (!getGeminiKeyFromStorage()) {
+        showToast(GEMINI_GUARD_MESSAGE, "error");
         return;
     }
+
+    const settings = loadSettings();
+    const geminiKey = settings.gemini_api_key.trim();
 
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = "Analiz Ediliyor...";
@@ -217,7 +284,7 @@ analyzeBtn.addEventListener("click", async () => {
     const base = getBackendBaseUrl();
     const headers = {
         "Content-Type": "application/json",
-        "X-Gemini-Api-Key": settings.gemini_api_key.trim(),
+        "X-Gemini-Api-Key": geminiKey,
     };
 
     try {
@@ -229,7 +296,7 @@ analyzeBtn.addEventListener("click", async () => {
                 project_name: pageTitle.textContent.replace("Gereksinim Analizi - ", ""),
                 requirement_text: requirementText,
                 rag_collection: (settings.rag_collection || "default").trim() || "default",
-                api_key: settings.gemini_api_key.trim(),
+                api_key: geminiKey,
             }),
         });
         if (!response.ok) {
@@ -268,6 +335,7 @@ projectItems.forEach((item) => {
         setActiveProject(item);
         toggleSwitchAnimation();
         renderProject(projectKey);
+        closeNavDrawer();
     });
 });
 
@@ -281,9 +349,11 @@ newAnalysisBtn.addEventListener("click", () => {
     skeleton.classList.add("hidden");
     placeholderText.classList.remove("hidden");
     lastAnalysisId = null;
+    closeNavDrawer();
 });
 
 settingsBtn.addEventListener("click", () => {
+    closeNavDrawer();
     populateSettingsForm();
     settingsModal.classList.remove("hidden");
 });
@@ -293,20 +363,22 @@ closeSettingsBtn.addEventListener("click", () => {
 });
 
 saveSettingsBtn.addEventListener("click", () => {
+    const prev = loadSettings();
     persistSettings({
+        ...prev,
         gemini_api_key: settingGeminiKey.value.trim(),
-        backend_base_url: settingBackendUrl.value.trim(),
         jira_base_url: settingJiraUrl.value.trim(),
         jira_email: settingJiraEmail.value.trim(),
         jira_api_token: settingJiraToken.value.trim(),
-        jira_project_key: settingJiraProject.value.trim(),
         github_token: settingGithubToken.value.trim(),
+        backend_base_url: settingBackendUrl.value.trim(),
+        rag_collection: settingRagCollection.value.trim() || "default",
+        jira_project_key: settingJiraProject.value.trim(),
         github_repo: settingGithubRepo.value.trim(),
         github_default_path: settingGithubPath.value.trim() || "exports/analysis.md",
         github_branch: settingGithubBranch.value.trim() || "main",
-        rag_collection: settingRagCollection.value.trim() || "default",
     });
-    showToast("Yapilandirma kaydedildi (tarayici yerel deposu).", "success");
+    showToast("Ayarlar kaydedildi.", "success");
     settingsModal.classList.add("hidden");
 });
 
@@ -365,7 +437,10 @@ jiraBtn.addEventListener("click", async () => {
     const token = s.jira_api_token.trim();
     const projectKey = s.jira_project_key.trim();
     if (!baseUrl || !email || !token || !projectKey) {
-        showToast("Jira icin Ayarlar'da URL, e-posta, token ve proje anahtari girin.", "error");
+        showToast(
+            "Jira export icin temel alanlar ve Gelişmiş bölümündeki proje anahtarı gerekir. Ayarlar menüsünü kontrol edin.",
+            "error"
+        );
         return;
     }
 
@@ -417,7 +492,10 @@ githubBtn.addEventListener("click", async () => {
     const filePath = (s.github_default_path || "exports/analysis.md").trim() || "exports/analysis.md";
     const branch = (s.github_branch || "main").trim() || "main";
     if (!repo || !ghToken) {
-        showToast("GitHub icin Ayarlar'da repo (owner/isim) ve token girin.", "error");
+        showToast(
+            "GitHub export icin token ve Gelişmiş bölümündeki repository (owner/repo) gerekir. Ayarlar menüsünü kontrol edin.",
+            "error"
+        );
         return;
     }
 

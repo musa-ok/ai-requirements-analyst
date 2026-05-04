@@ -2,32 +2,19 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
 <body>
 
-<header class="site-header">
-  <div class="container">
-    <div class="logo">
-      <div class="logo-icon">⚙</div>
-      <a href="{% url 'home' %}" class="logo-text">AI_RA</a>
-    </div>
-    <nav>
-      <a href="{% url 'home' %}" class="active">Ana Sayfa</a>
-      <a href="{% url 'requirement_new' %}">Yeni Analiz</a>
-      <a href="{% url 'requirement_list' %}">Geçmiş</a>
-    </nav>
-  </div>
-</header>
+{% include 'requirements_app/includes/site_header.html' with active_nav='home' %}
 
 <main>
   <!-- HERO -->
   <section class="hero">
     <div class="container">
-      <div class="hero-badge">✦ HW5 — İlk SaaS Prototipi</div>
       <h1>Yapay Zekâ Destekli<br><span class="accent">Gereksinim Analisti</span></h1>
       <p class="hero-desc">
         Doğal dilde yazdığınız yazılım fikirlerini BDD formatında gereksinime,
@@ -113,8 +100,7 @@
 
 <footer class="site-footer">
   <div class="container">
-    <p>AI_RA — Yapay Zekâ Destekli Gereksinim Analisti Sistemi &copy; 2024</p>
-    <p class="team">M. Sina GÜN · S. M. SUN · Musa OK · Şahin KARA · Berk KIZGIN | Danışman: Prof. Dr. H. Gümüşkaya</p>
+    <p>AI_RA — Kurumsal gereksinim analizi ve kalite otomasyonu &copy; 2026</p>
   </div>
 </footer>
 
