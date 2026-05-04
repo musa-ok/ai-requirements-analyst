@@ -138,6 +138,7 @@ def analyzed_session(client: TestClient, api_key: str, temp_pdf_bytes: bytes) ->
         "requirement_text": LOGIN_REQUIREMENT_TEXT,
         "rag_collection": collection_name,
         "api_key": api_key,
+        "model_type": "gemini",
     }
     analyze_response = client.post("/analyze", json=analyze_payload)
     assert analyze_response.status_code == 200, analyze_response.text

@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from io import BytesIO
 from textwrap import wrap
-from typing import Dict, List, Literal, Mapping, TypedDict
+from typing import Dict, List, Literal, Mapping, TypedDict, cast
 from uuid import uuid4
 
 import requests
@@ -14,12 +14,15 @@ from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pypdf import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+
+
+ModelType = Literal["gemini", "claude", "openai"]
 
 
 class AnalysisState(TypedDict, total=False):
@@ -27,6 +30,7 @@ class AnalysisState(TypedDict, total=False):
     requirement_text: str
     rag_context: str
     api_key: str
+    model_type: ModelType
     acceptance_criteria: List[str]
     gherkin_scenarios: List[str]
     story_points: int
@@ -35,11 +39,14 @@ class AnalysisState(TypedDict, total=False):
 
 
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     session_id: str = Field(default_factory=lambda: str(uuid4()))
     project_name: str
     requirement_text: str
     rag_collection: str = "default"
     api_key: str = ""
+    model_type: ModelType = "gemini"
 
 
 class AnalysisResponse(BaseModel):
@@ -173,6 +180,24 @@ def _normalize_analyst_payload(data: dict) -> dict:
     }
 
 
+def _assistant_text_content(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        chunks: List[str] = []
+        for part in content:
+            if isinstance(part, str):
+                chunks.append(part)
+            elif isinstance(part, dict):
+                text = part.get("text")
+                if isinstance(text, str):
+                    chunks.append(text)
+            else:
+                chunks.append(str(part))
+        return "".join(chunks)
+    return str(content)
+
+
 def _normalize_qa_payload(data: dict) -> dict:
     if not isinstance(data, dict):
         raise ValueError("QA model ciktisi bir JSON nesnesi olmalidir.")
@@ -185,16 +210,40 @@ def _normalize_qa_payload(data: dict) -> dict:
     return {"qa_status": status, "qa_feedback": feedback.strip()}
 
 
-def _build_llm(api_key: str) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=api_key,
-        temperature=0.2,
-    )
+def _build_chat_model(model_type: str, api_key: str) -> BaseChatModel:
+    key = (api_key or "").strip()
+    if not key:
+        raise ValueError("API anahtari bos olamaz.")
+    mt = (model_type or "gemini").strip().lower()
+    if mt == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=key,
+            temperature=0.2,
+        )
+    if mt == "claude":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(
+            model_name="claude-3-5-sonnet-20240620",
+            api_key=key,
+            temperature=0.2,
+        )
+    if mt == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model="gpt-4o",
+            api_key=key,
+            temperature=0.2,
+        )
+    raise ValueError(f"Desteklenmeyen model_type: {model_type!r}")
 
 
 def analyst_agent(state: AnalysisState) -> AnalysisState:
-    llm = _build_llm(state["api_key"])
+    llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
     requirement_text = state["requirement_text"].strip()
     rag_context = state.get("rag_context", "")
     prompt = (
@@ -209,14 +258,14 @@ def analyst_agent(state: AnalysisState) -> AnalysisState:
         f"RAG Context:\n{rag_context or 'No additional context'}\n"
     )
     response = llm.invoke(prompt)
-    raw = response.content if isinstance(response.content, str) else str(response.content)
+    raw = _assistant_text_content(response.content)
     data = _extract_json_payload(raw)
     normalized = _normalize_analyst_payload(data)
     return normalized
 
 
 def qa_agent(state: AnalysisState) -> AnalysisState:
-    llm = _build_llm(state["api_key"])
+    llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
     prompt = (
         "You are the QA Agent of AI-RA.\n"
         "Evaluate the analyst output for consistency, ambiguity, and hallucination risk.\n"
@@ -227,7 +276,7 @@ def qa_agent(state: AnalysisState) -> AnalysisState:
         f"Story Points:\n{state.get('story_points')}\n"
     )
     response = llm.invoke(prompt)
-    raw = response.content if isinstance(response.content, str) else str(response.content)
+    raw = _assistant_text_content(response.content)
     data = _extract_json_payload(raw)
     return _normalize_qa_payload(data)
 
@@ -280,16 +329,20 @@ async def upload_rag_pdf(
 @app.post("/analyze", response_model=AnalysisResponse, tags=["analysis"])
 def analyze_requirement(http_request: Request, body: AnalyzeRequest) -> AnalysisResponse:
     rag_context = _fetch_rag_context(body.rag_collection, body.requirement_text)
-    header_key = (http_request.headers.get("x-gemini-api-key") or "").strip()
-    api_key = (
-        body.api_key.strip()
-        or header_key
-        or os.environ.get("TEST_GEMINI_API_KEY", "").strip()
-        or os.environ.get("GOOGLE_API_KEY", "").strip()
-        or os.environ.get("GEMINI_API_KEY", "").strip()
+    header_key = (
+        (http_request.headers.get("x-llm-api-key") or "").strip()
+        or (http_request.headers.get("x-gemini-api-key") or "").strip()
     )
+    api_key = body.api_key.strip() or header_key
     if not api_key:
-        raise HTTPException(status_code=400, detail="API key zorunludur.")
+        raise HTTPException(
+            status_code=400,
+            detail="API anahtari zorunludur: istek govdesinde api_key veya X-Llm-Api-Key / X-Gemini-Api-Key basligi.",
+        )
+    hdr_model = (http_request.headers.get("x-model-type") or "").strip().lower()
+    model_type: ModelType = body.model_type
+    if hdr_model in ("gemini", "claude", "openai"):
+        model_type = cast(ModelType, hdr_model)
     try:
         result = analysis_workflow.invoke(
             {
@@ -297,6 +350,7 @@ def analyze_requirement(http_request: Request, body: AnalyzeRequest) -> Analysis
                 "requirement_text": body.requirement_text,
                 "rag_context": rag_context,
                 "api_key": api_key,
+                "model_type": model_type,
             }
         )
     except Exception as exc:

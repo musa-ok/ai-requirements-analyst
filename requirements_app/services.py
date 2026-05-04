@@ -51,6 +51,7 @@ def analyze_requirement(raw_text: str, *, project_name: str = "Web Projesi") -> 
             "requirement_text": text,
             "rag_context": "",
             "api_key": api_key,
+            "model_type": "gemini",
         }
     )
 

@@ -116,8 +116,16 @@
             </p>
             <div class="settings-grid">
                 <label>
-                    Gemini API Key <span class="settings-req">zorunlu</span>
-                    <input id="settingGeminiKey" type="password" autocomplete="off" placeholder="Google AI Studio anahtarı" />
+                    Yapay Zeka Modeli Seçin
+                    <select id="settingModelType" autocomplete="off">
+                        <option value="gemini">Gemini 2.5 Flash</option>
+                        <option value="claude">Claude 3.5 Sonnet</option>
+                        <option value="openai">GPT-4o</option>
+                    </select>
+                </label>
+                <label>
+                    <span id="settingApiKeyLabel">API anahtarı</span> <span class="settings-req">zorunlu</span>
+                    <input id="settingLlmApiKey" type="password" autocomplete="off" placeholder="Google AI Studio / Gemini API anahtarı" />
                 </label>
                 <label>
                     Jira Base URL

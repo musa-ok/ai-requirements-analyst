@@ -10,6 +10,8 @@ behave>=1.2.6
 fastapi==0.110.3
 uvicorn[standard]==0.29.0
 langchain-google-genai==1.0.10
+langchain-anthropic>=0.1.23,<0.2
+langchain-openai>=0.1.23,<0.2
 langgraph==0.2.16
 pydantic==2.7.4
 python-dotenv==1.0.1

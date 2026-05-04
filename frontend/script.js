@@ -29,7 +29,8 @@ const wordBtn = document.getElementById("wordBtn");
 const micBtn = document.getElementById("micBtn");
 const ragUploadInput = document.getElementById("rag-upload");
 
-const settingGeminiKey = document.getElementById("settingGeminiKey");
+const settingModelType = document.getElementById("settingModelType");
+const settingLlmApiKey = document.getElementById("settingLlmApiKey");
 const settingJiraUrl = document.getElementById("settingJiraUrl");
 const settingJiraEmail = document.getElementById("settingJiraEmail");
 const settingJiraToken = document.getElementById("settingJiraToken");
@@ -43,8 +44,8 @@ const settingGithubBranch = document.getElementById("settingGithubBranch");
 
 const SESSION_STORAGE_KEY = "ai_ra_session_id";
 const SETTINGS_STORAGE_KEY = "ai_ra_user_config";
-const GEMINI_GUARD_MESSAGE =
-    "Lütfen analiz yapmadan önce Ayarlar menüsünden Gemini API anahtarınızı girin.";
+const LLM_API_KEY_GUARD_MESSAGE =
+    "Lütfen analiz yapmadan önce Ayarlar menüsünden seçtiğiniz model için API anahtarınızı girin.";
 
 const sessionId = localStorage.getItem(SESSION_STORAGE_KEY) || crypto.randomUUID();
 localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
@@ -89,6 +90,8 @@ window.matchMedia("(min-width: 769px)").addEventListener("change", (e) => {
 
 function defaultSettings() {
     return {
+        model_type: "gemini",
+        llm_api_key: "",
         gemini_api_key: "",
         backend_base_url: "",
         jira_base_url: "",
@@ -107,7 +110,12 @@ function loadSettings() {
     try {
         const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
         if (!raw) return defaultSettings();
-        return { ...defaultSettings(), ...JSON.parse(raw) };
+        const merged = { ...defaultSettings(), ...JSON.parse(raw) };
+        if (!merged.llm_api_key && merged.gemini_api_key) {
+            merged.llm_api_key = merged.gemini_api_key;
+        }
+        if (!merged.model_type) merged.model_type = "gemini";
+        return merged;
     } catch {
         return defaultSettings();
     }
@@ -120,15 +128,20 @@ function persistSettings(partial) {
 }
 
 /** Analiz öncesi: yalnızca localStorage üzerinden doğrulama */
-function getGeminiKeyFromStorage() {
-    try {
-        const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-        if (!raw) return "";
-        const o = JSON.parse(raw);
-        return String(o.gemini_api_key || "").trim();
-    } catch {
-        return "";
-    }
+function getLlmApiKeyFromStorage() {
+    const s = loadSettings();
+    return String(s.llm_api_key || s.gemini_api_key || "").trim();
+}
+
+function syncApiKeyPlaceholder() {
+    if (!settingLlmApiKey || !settingModelType) return;
+    const mt = settingModelType.value || "gemini";
+    const placeholders = {
+        gemini: "Google AI Studio / Gemini API anahtarı",
+        claude: "Anthropic API Key girin",
+        openai: "OpenAI API Key girin",
+    };
+    settingLlmApiKey.placeholder = placeholders[mt] || placeholders.gemini;
 }
 
 function getBackendBaseUrl() {
@@ -139,7 +152,15 @@ function getBackendBaseUrl() {
 
 function populateSettingsForm() {
     const s = loadSettings();
-    settingGeminiKey.value = s.gemini_api_key;
+    if (settingModelType) {
+        settingModelType.value = ["gemini", "claude", "openai"].includes(s.model_type)
+            ? s.model_type
+            : "gemini";
+    }
+    if (settingLlmApiKey) {
+        settingLlmApiKey.value = (s.llm_api_key || s.gemini_api_key || "").trim();
+    }
+    syncApiKeyPlaceholder();
     settingJiraUrl.value = s.jira_base_url;
     settingJiraEmail.value = s.jira_email;
     settingJiraToken.value = s.jira_api_token;
@@ -266,13 +287,16 @@ analyzeBtn.addEventListener("click", async () => {
         return;
     }
 
-    if (!getGeminiKeyFromStorage()) {
-        showToast(GEMINI_GUARD_MESSAGE, "error");
+    if (!getLlmApiKeyFromStorage()) {
+        showToast(LLM_API_KEY_GUARD_MESSAGE, "error");
         return;
     }
 
     const settings = loadSettings();
-    const geminiKey = settings.gemini_api_key.trim();
+    const apiKey = getLlmApiKeyFromStorage();
+    const modelType = ["gemini", "claude", "openai"].includes(settings.model_type)
+        ? settings.model_type
+        : "gemini";
 
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = "Analiz Ediliyor...";
@@ -284,7 +308,9 @@ analyzeBtn.addEventListener("click", async () => {
     const base = getBackendBaseUrl();
     const headers = {
         "Content-Type": "application/json",
-        "X-Gemini-Api-Key": geminiKey,
+        "X-Llm-Api-Key": apiKey,
+        "X-Gemini-Api-Key": apiKey,
+        "X-Model-Type": modelType,
     };
 
     try {
@@ -296,7 +322,8 @@ analyzeBtn.addEventListener("click", async () => {
                 project_name: pageTitle.textContent.replace("Gereksinim Analizi - ", ""),
                 requirement_text: requirementText,
                 rag_collection: (settings.rag_collection || "default").trim() || "default",
-                api_key: geminiKey,
+                api_key: apiKey,
+                model_type: modelType,
             }),
         });
         if (!response.ok) {
@@ -362,11 +389,21 @@ closeSettingsBtn.addEventListener("click", () => {
     settingsModal.classList.add("hidden");
 });
 
+if (settingModelType) {
+    settingModelType.addEventListener("change", syncApiKeyPlaceholder);
+}
+
 saveSettingsBtn.addEventListener("click", () => {
     const prev = loadSettings();
+    const keyVal = settingLlmApiKey ? settingLlmApiKey.value.trim() : "";
+    const mt = settingModelType && ["gemini", "claude", "openai"].includes(settingModelType.value)
+        ? settingModelType.value
+        : "gemini";
     persistSettings({
         ...prev,
-        gemini_api_key: settingGeminiKey.value.trim(),
+        model_type: mt,
+        llm_api_key: keyVal,
+        gemini_api_key: keyVal,
         jira_base_url: settingJiraUrl.value.trim(),
         jira_email: settingJiraEmail.value.trim(),
         jira_api_token: settingJiraToken.value.trim(),

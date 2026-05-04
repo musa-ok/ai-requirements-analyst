@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .forms import RequirementForm
@@ -25,10 +25,10 @@ class RequirementFormTests(TestCase):
 
 
 class ServiceTests(TestCase):
+    @patch("backend.main.analysis_workflow")
     @patch("requirements_app.services._resolve_gemini_api_key", return_value="test-gemini-key")
-    @patch("backend.main.analysis_workflow.invoke")
-    def test_analyze_requirement_returns_all_outputs(self, mock_invoke, _mock_resolve_key):
-        mock_invoke.return_value = {
+    def test_analyze_requirement_returns_all_outputs(self, _mock_resolve_key, mock_workflow):
+        mock_workflow.invoke.return_value = {
             "acceptance_criteria": [
                 "Given kullanici arama kutusuna yazar",
                 "When sonuclar filtrelenir",
@@ -53,6 +53,9 @@ class ServiceTests(TestCase):
         self.assertIsInstance(estimate_story_points("A" * 300), int)
 
 
+@override_settings(
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 @patch(
     "requirements_app.views.analyze_requirement",
     return_value={

@@ -557,7 +557,8 @@ textarea::placeholder {
     font-size: 0.86rem;
 }
 
-.settings-grid input {
+.settings-grid input,
+.settings-grid select {
     width: 100%;
     border: 1px solid var(--border);
     border-radius: 9px;
@@ -568,7 +569,8 @@ textarea::placeholder {
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.settings-grid input:focus {
+.settings-grid input:focus,
+.settings-grid select:focus {
     border-color: var(--accent-cyan);
     box-shadow: 0 0 0 3px rgba(0, 209, 255, 0.15);
 }
@@ -891,6 +893,7 @@ textarea::placeholder {
     }
 
     .settings-grid input,
+    .settings-grid select,
     .settings-advanced input {
         font-size: 16px;
         min-height: 44px;
