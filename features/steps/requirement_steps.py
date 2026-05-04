@@ -59,6 +59,7 @@ def step_user_clicks_analyze(context):
     data = {
         'project_name': context.project_name or 'Test Projesi',
         'raw_text': context.requirement_text or '',
+        'api_key': 'behave-test-api-key',
     }
     with patch("requirements_app.views.analyze_requirement", return_value=_BEHAVE_ANALYSIS_STUB):
         context.response = context.client.post('/requirements/new/', data)
@@ -69,6 +70,7 @@ def step_user_sends_empty(context):
     context.response = context.client.post('/requirements/new/', {
         'project_name': 'Test Projesi',
         'raw_text': '',
+        'api_key': 'behave-test-api-key',
     })
 
 

@@ -5,8 +5,6 @@ Cikti uretimi yalnizca Gemini (LangGraph) ile yapilir; sabit/mock metin kullanil
 
 from __future__ import annotations
 
-import os
-
 
 def estimate_story_points(raw_text: str) -> int:
     """Gereksinim karmaşıklığına göre story point tahmini yapar (yardımcı fonksiyon)."""
@@ -25,21 +23,18 @@ def estimate_story_points(raw_text: str) -> int:
         return 8
 
 
-def _resolve_gemini_api_key() -> str:
-    return (
-        os.environ.get("GOOGLE_API_KEY", "").strip()
-        or os.environ.get("GEMINI_API_KEY", "").strip()
-        or os.environ.get("TEST_GEMINI_API_KEY", "").strip()
-    )
-
-
-def analyze_requirement(raw_text: str, *, project_name: str = "Web Projesi") -> dict:
-    """Gemini tabanli analiz; sonuclar tamamen modele baglidir."""
-    api_key = _resolve_gemini_api_key()
-    if not api_key:
+def analyze_requirement(
+    raw_text: str,
+    *,
+    project_name: str = "Web Projesi",
+    api_key: str,
+    model_type: str = "gemini",
+) -> dict:
+    """Gemini tabanli analiz; anahtar istemciden gelir, sunucu ortam degiskeni kullanilmaz."""
+    key = (api_key or "").strip()
+    if not key:
         raise ValueError(
-            "Gemini API anahtari bulunamadi. Ortam degiskeni olarak GOOGLE_API_KEY, "
-            "GEMINI_API_KEY veya TEST_GEMINI_API_KEY tanimlayin."
+            "API anahtari zorunludur. Analiz icin Gemini API anahtarini formda veya istekle gonderin."
         )
 
     from backend.main import analysis_workflow
@@ -50,8 +45,8 @@ def analyze_requirement(raw_text: str, *, project_name: str = "Web Projesi") -> 
             "project_name": project_name.strip() or "Web Projesi",
             "requirement_text": text,
             "rag_context": "",
-            "api_key": api_key,
-            "model_type": "gemini",
+            "api_key": key,
+            "model_type": (model_type or "gemini").strip().lower() or "gemini",
         }
     )
 

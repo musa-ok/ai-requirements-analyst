@@ -15,8 +15,9 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pypdf import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -45,8 +46,16 @@ class AnalyzeRequest(BaseModel):
     project_name: str
     requirement_text: str
     rag_collection: str = "default"
-    api_key: str = ""
+    api_key: str
     model_type: ModelType = "gemini"
+
+    @field_validator("api_key")
+    @classmethod
+    def _api_key_nonempty(cls, v: str) -> str:
+        s = (v or "").strip()
+        if not s:
+            raise ValueError("api_key bos olamaz.")
+        return s
 
 
 class AnalysisResponse(BaseModel):
@@ -216,8 +225,6 @@ def _build_chat_model(model_type: str, api_key: str) -> BaseChatModel:
         raise ValueError("API anahtari bos olamaz.")
     mt = (model_type or "gemini").strip().lower()
     if mt == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
         return ChatGoogleGenerativeAI(
             model="gemini-2.5-flash",
             google_api_key=key,
@@ -329,16 +336,7 @@ async def upload_rag_pdf(
 @app.post("/analyze", response_model=AnalysisResponse, tags=["analysis"])
 def analyze_requirement(http_request: Request, body: AnalyzeRequest) -> AnalysisResponse:
     rag_context = _fetch_rag_context(body.rag_collection, body.requirement_text)
-    header_key = (
-        (http_request.headers.get("x-llm-api-key") or "").strip()
-        or (http_request.headers.get("x-gemini-api-key") or "").strip()
-    )
-    api_key = body.api_key.strip() or header_key
-    if not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="API anahtari zorunludur: istek govdesinde api_key veya X-Llm-Api-Key / X-Gemini-Api-Key basligi.",
-        )
+    api_key = body.api_key
     hdr_model = (http_request.headers.get("x-model-type") or "").strip().lower()
     model_type: ModelType = body.model_type
     if hdr_model in ("gemini", "claude", "openai"):

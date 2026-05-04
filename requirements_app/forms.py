@@ -21,6 +21,16 @@ class RequirementForm(forms.Form):
             ),
         }),
     )
+    api_key = forms.CharField(
+        label='Gemini API anahtarı',
+        widget=forms.PasswordInput(
+            attrs={
+                'class': 'form-input',
+                'placeholder': 'Google AI Studio anahtarı (sunucuda saklanmaz)',
+                'autocomplete': 'off',
+            },
+        ),
+    )
 
     def clean_raw_text(self):
         text = self.cleaned_data.get('raw_text', '').strip()
@@ -36,3 +46,9 @@ class RequirementForm(forms.Form):
         if not name:
             raise forms.ValidationError('Proje adı boş bırakılamaz.')
         return name
+
+    def clean_api_key(self):
+        key = self.cleaned_data.get('api_key', '').strip()
+        if not key:
+            raise forms.ValidationError('Gemini API anahtarı zorunludur.')
+        return key

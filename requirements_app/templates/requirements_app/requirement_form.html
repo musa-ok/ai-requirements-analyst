@@ -50,6 +50,15 @@
             <small class="field-hint">En az 10 karakter. Aktörü (kullanıcı, sistem vb.) belirtmeniz daha kaliteli çıktı sağlar.</small>
           </div>
 
+          <div class="form-group">
+            <label for="id_api_key">{{ form.api_key.label }}</label>
+            {{ form.api_key }}
+            {% if form.api_key.errors %}
+            <div class="field-error">⚠ {% for e in form.api_key.errors %}{{ e }}{% endfor %}</div>
+            {% endif %}
+            <small class="field-hint">Anahtar yalnızca bu istek için kullanılır; veritabanına veya sunucu ortamına yazılmaz.</small>
+          </div>
+
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">⚡ Analiz Et</button>
             <a href="{% url 'home' %}" class="btn btn-secondary" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← İptal</a>

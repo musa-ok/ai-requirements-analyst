@@ -15,19 +15,25 @@ class RequirementFormTests(TestCase):
             data={
                 "project_name": "Test Projesi",
                 "raw_text": "Kullanici sisteme e-posta ve sifre ile giris yapabilmelidir.",
+                "api_key": "test-api-key-value",
             }
         )
         self.assertTrue(form.is_valid())
 
     def test_short_text_invalid(self):
-        form = RequirementForm(data={"project_name": "Test", "raw_text": "kisa"})
+        form = RequirementForm(
+            data={
+                "project_name": "Test",
+                "raw_text": "kisa",
+                "api_key": "test-api-key-value",
+            }
+        )
         self.assertFalse(form.is_valid())
 
 
 class ServiceTests(TestCase):
     @patch("backend.main.analysis_workflow")
-    @patch("requirements_app.services._resolve_gemini_api_key", return_value="test-gemini-key")
-    def test_analyze_requirement_returns_all_outputs(self, _mock_resolve_key, mock_workflow):
+    def test_analyze_requirement_returns_all_outputs(self, mock_workflow):
         mock_workflow.invoke.return_value = {
             "acceptance_criteria": [
                 "Given kullanici arama kutusuna yazar",
@@ -42,7 +48,9 @@ class ServiceTests(TestCase):
             "qa_feedback": "Tutarli.",
         }
         payload = analyze_requirement(
-            "Kullanici urun aramasi yapabilmelidir.", project_name="Demo"
+            "Kullanici urun aramasi yapabilmelidir.",
+            project_name="Demo",
+            api_key="test-gemini-key",
         )
         self.assertIn("bdd_output", payload)
         self.assertIn("gherkin_output", payload)
@@ -73,6 +81,7 @@ class SessionFlowTests(TestCase):
             {
                 "project_name": "Demo",
                 "raw_text": "Kullanici profilini guncelleyebilmeli ve degisiklikleri kaydedebilmelidir.",
+                "api_key": "django-test-api-key",
             },
         )
         self.assertEqual(response.status_code, 302)

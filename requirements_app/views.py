@@ -36,7 +36,11 @@ def requirement_new(request):
             project_name = form.cleaned_data['project_name']
             raw_text = form.cleaned_data['raw_text']
             try:
-                analysis = analyze_requirement(raw_text, project_name=project_name)
+                analysis = analyze_requirement(
+                    raw_text,
+                    project_name=project_name,
+                    api_key=form.cleaned_data['api_key'],
+                )
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return render(request, 'requirements_app/requirement_form.html', {'form': form})
