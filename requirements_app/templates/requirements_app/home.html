@@ -97,12 +97,12 @@
         {% for req in recent_requirements %}
         <div class="recent-item">
           <div class="recent-meta">
-            <span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span>
-            <span class="project-name">{{ req.project.name }}</span>
-            <span class="date">{{ req.created_at|date:"d.m.Y H:i" }}</span>
+            <span class="badge badge-{{ req.status }}">{{ req.status_display }}</span>
+            <span class="project-name">{{ req.project_name }}</span>
+            <span class="date">{{ req.created_at }}</span>
           </div>
           <p class="recent-text">{{ req.raw_text|truncatechars:90 }}</p>
-          <a href="{% url 'requirement_detail' req.pk %}" class="btn btn-light btn-sm">Görüntüle →</a>
+          <a href="{% url 'requirement_detail' req.id %}" class="btn btn-light btn-sm">Görüntüle →</a>
         </div>
         {% endfor %}
       </div>

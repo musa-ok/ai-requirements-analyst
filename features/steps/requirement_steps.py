@@ -13,8 +13,6 @@ django.setup()
 
 from behave import given, when, then
 from django.test import Client
-from django.urls import reverse
-from requirements_app.models import Requirement, AnalysisResult, Project
 from requirements_app.services import generate_bdd_output, generate_gherkin_output
 
 
@@ -56,15 +54,15 @@ def step_user_sends_empty(context):
 
 @then('sistem bir gereksinim kaydı oluşturmalıdır')
 def step_requirement_created(context):
-    assert Requirement.objects.count() > 0, "Gereksinim kaydı oluşturulmadı!"
+    session_items = context.client.session.get("requirement_analyses", [])
+    assert len(session_items) > 0, "Analiz kaydi oturumda olusmadi."
 
 
 @then('sistem BDD çıktısı göstermelidir')
 def step_bdd_output_shown(context):
-    req = Requirement.objects.order_by('-created_at').first()
-    assert req is not None, "Gereksinim bulunamadı"
-    assert hasattr(req, 'result'), "AnalysisResult ilişkisi yok"
-    bdd = req.result.bdd_output
+    session_items = context.client.session.get("requirement_analyses", [])
+    assert session_items, "Analiz bulunamadi"
+    bdd = session_items[-1]["result"]["bdd_output"]
     assert 'Given' in bdd, f"BDD çıktısında 'Given' yok: {bdd}"
     assert 'When' in bdd, f"BDD çıktısında 'When' yok: {bdd}"
     assert 'Then' in bdd, f"BDD çıktısında 'Then' yok: {bdd}"
@@ -72,8 +70,8 @@ def step_bdd_output_shown(context):
 
 @then('sistem Gherkin test senaryosu göstermelidir')
 def step_gherkin_output_shown(context):
-    req = Requirement.objects.order_by('-created_at').first()
-    gherkin = req.result.gherkin_output
+    session_items = context.client.session.get("requirement_analyses", [])
+    gherkin = session_items[-1]["result"]["gherkin_output"]
     assert 'Feature:' in gherkin, f"Gherkin çıktısında 'Feature:' yok: {gherkin}"
     assert 'Scenario:' in gherkin, f"Gherkin çıktısında 'Scenario:' yok: {gherkin}"
 
@@ -89,37 +87,29 @@ def step_error_shown(context):
 @then('analiz kaydı oluşturmamalıdır')
 def step_no_requirement_created(context):
     count_before = getattr(context, '_count_before', 0)
-    current_count = Requirement.objects.count()
+    current_count = len(context.client.session.get("requirement_analyses", []))
     assert current_count == count_before, \
         f"Analiz kaydı oluşturulmamalıydı ancak {current_count - count_before} kayıt eklendi"
 
 
 @given('kullanıcı geçerli bir gereksinim analizi tamamlamıştır')
 def step_valid_analysis_done(context):
-    project = Project.objects.create(name="BDD Test Projesi")
-    req = Requirement.objects.create(
-        project=project,
-        raw_text="Kullanıcı sisteme e-posta ve şifre ile giriş yapabilmelidir.",
-        status='analyzed',
-    )
-    bdd = generate_bdd_output(req.raw_text)
-    gherkin = generate_gherkin_output(req.raw_text)
-    context.result = AnalysisResult.objects.create(
-        requirement=req,
-        bdd_output=bdd,
-        gherkin_output=gherkin,
-        qa_result="Gereksinim geçerlidir.",
-        story_point=3,
-    )
+    raw_text = "Kullanıcı sisteme e-posta ve şifre ile giriş yapabilmelidir."
+    bdd = generate_bdd_output(raw_text)
+    gherkin = generate_gherkin_output(raw_text)
+    context.result = {
+        "bdd_output": bdd,
+        "gherkin_output": gherkin,
+    }
 
 
 @then('BDD çıktısında "{keyword}" ifadesi bulunmalıdır')
 def step_bdd_contains_keyword(context, keyword):
-    assert keyword in context.result.bdd_output, \
-        f"BDD çıktısında '{keyword}' bulunamadı:\n{context.result.bdd_output}"
+    assert keyword in context.result["bdd_output"], \
+        f"BDD çıktısında '{keyword}' bulunamadı:\n{context.result['bdd_output']}"
 
 
 @then('Gherkin çıktısında "{keyword}" ifadesi bulunmalıdır')
 def step_gherkin_contains_keyword(context, keyword):
-    assert keyword in context.result.gherkin_output, \
-        f"Gherkin çıktısında '{keyword}' bulunamadı:\n{context.result.gherkin_output}"
+    assert keyword in context.result["gherkin_output"], \
+        f"Gherkin çıktısında '{keyword}' bulunamadı:\n{context.result['gherkin_output']}"

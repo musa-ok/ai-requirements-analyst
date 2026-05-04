@@ -54,8 +54,10 @@
                 <div class="output-header">
                     <span>Analiz Çıktısı (Gherkin & Story Point)</span>
                     <div class="export-options">
+                        <button id="githubBtn" class="export-btn">GitHub'a Aktar</button>
                         <button id="jiraBtn" class="export-btn">Jira'ya At</button>
-                        <button class="export-btn">PDF İndir</button>
+                        <button id="pdfBtn" class="export-btn">PDF İndir</button>
+                        <button id="wordBtn" class="export-btn">Word İndir</button>
                     </div>
                 </div>
                 <div id="resultDisplay" class="result-box">
@@ -89,11 +91,15 @@
             <div class="settings-grid">
                 <label>
                     API Key
-                    <input type="text" placeholder="sk-..." />
+                    <input id="apiKeyInput" type="text" placeholder="sk-..." />
+                </label>
+                <label>
+                    API Key'i Hatırla
+                    <input id="rememberApiKey" type="checkbox" checked />
                 </label>
                 <label>
                     Varsayilan RAG Koleksiyonu
-                    <input type="text" placeholder="product-docs-v1" />
+                    <input id="ragCollectionInput" type="text" placeholder="product-docs-v1" />
                 </label>
             </div>
         </div>

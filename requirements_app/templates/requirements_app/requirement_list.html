@@ -50,15 +50,15 @@
         <tbody>
           {% for req in requirements %}
           <tr>
-            <td style="color:var(--slate-500);font-size:.8rem;">{{ req.pk }}</td>
-            <td><strong>{{ req.project.name }}</strong></td>
+            <td style="color:var(--slate-500);font-size:.8rem;">{{ req.id }}</td>
+            <td><strong>{{ req.project_name }}</strong></td>
             <td style="color:var(--slate-600);">{{ req.raw_text|truncatechars:65 }}</td>
-            <td><span class="badge badge-{{ req.status }}">{{ req.get_status_display }}</span></td>
+            <td><span class="badge badge-{{ req.status }}">{{ req.status_display }}</span></td>
             <td style="font-weight:700;color:var(--indigo);">
               {% if req.result %}{{ req.result.story_point }}{% else %}—{% endif %}
             </td>
-            <td style="color:var(--slate-500);font-size:.8rem;white-space:nowrap;">{{ req.created_at|date:"d.m.Y H:i" }}</td>
-            <td><a href="{% url 'requirement_detail' req.pk %}" class="btn btn-light btn-sm">Görüntüle →</a></td>
+            <td style="color:var(--slate-500);font-size:.8rem;white-space:nowrap;">{{ req.created_at }}</td>
+            <td><a href="{% url 'requirement_detail' req.id %}" class="btn btn-light btn-sm">Görüntüle →</a></td>
           </tr>
           {% endfor %}
         </tbody>

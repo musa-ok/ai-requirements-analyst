@@ -11,7 +11,7 @@ def generate_bdd_output(raw_text: str) -> str:
         f"**Given** kullanıcı sisteme giriş yapmış ve ilgili modüle erişim yetkisine sahip\n"
         f"**When** kullanıcı şu isteği iletir: \"{text}\"\n"
         f"**Then** sistem isteği işleyerek kullanıcıya yapılandırılmış gereksinim çıktısı sunar\n"
-        f"**And** sistem bu gereksinimi veritabanına kaydeder"
+        f"**And** sistem çıktıyı export için oturum belleğinde hazırlar"
     )
 
 
@@ -25,14 +25,14 @@ def generate_gherkin_output(raw_text: str) -> str:
         f"    Given kullanıcı gereksinim giriş sayfasındadır\n"
         f"    When kullanıcı \"{short}\" metnini girer\n"
         f"    And kullanıcı \"Analiz Et\" butonuna basar\n"
-        f"    Then sistem bir gereksinim kaydı oluşturur\n"
+        f"    Then sistem analiz çıktısını üretir\n"
         f"    And BDD formatında çıktı görüntülenir\n"
         f"    And Gherkin test senaryosu görüntülenir\n\n"
         f"  Scenario: Eksik girdi uyarısı\n"
         f"    Given kullanıcı gereksinim giriş sayfasındadır\n"
         f"    When kullanıcı boş veya çok kısa metin girer\n"
         f"    Then sistem uyarı mesajı gösterir\n"
-        f"    And analiz kaydı oluşturulmaz"
+        f"    And analiz çıktısı üretilmez"
     )
 
 

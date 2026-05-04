@@ -1,5 +1,4 @@
 from django import forms
-from .models import Requirement, Project
 
 
 class RequirementForm(forms.Form):

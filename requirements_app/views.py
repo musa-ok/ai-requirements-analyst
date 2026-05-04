@@ -1,16 +1,29 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from datetime import datetime
+from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import Project, Requirement, AnalysisResult
 from .forms import RequirementForm
 from .services import analyze_requirement
 
 
+SESSION_KEY = "requirement_analyses"
+
+
+def _get_session_items(request):
+    return request.session.get(SESSION_KEY, [])
+
+
+def _set_session_items(request, items):
+    request.session[SESSION_KEY] = items
+    request.session.modified = True
+
+
 def home(request):
     """Ana sayfa - sistem tanıtımı ve navigasyon."""
-    recent = Requirement.objects.select_related('project', 'result').order_by('-created_at')[:5]
+    all_items = _get_session_items(request)
+    recent = list(reversed(all_items[-5:]))
     context = {
         'recent_requirements': recent,
-        'total_count': Requirement.objects.count(),
+        'total_count': len(all_items),
     }
     return render(request, 'requirements_app/home.html', context)
 
@@ -22,33 +35,27 @@ def requirement_new(request):
         if form.is_valid():
             project_name = form.cleaned_data['project_name']
             raw_text = form.cleaned_data['raw_text']
-
-            project, _ = Project.objects.get_or_create(
-                name=project_name,
-                defaults={'description': f'{project_name} projesi'},
-            )
-
-            requirement = Requirement.objects.create(
-                project=project,
-                raw_text=raw_text,
-                status='pending',
-            )
-
             analysis = analyze_requirement(raw_text)
-
-            AnalysisResult.objects.create(
-                requirement=requirement,
-                bdd_output=analysis['bdd_output'],
-                gherkin_output=analysis['gherkin_output'],
-                qa_result=analysis['qa_result'],
-                story_point=analysis['story_point'],
-            )
-
-            requirement.status = 'analyzed'
-            requirement.save()
+            all_items = _get_session_items(request)
+            next_id = (all_items[-1]['id'] + 1) if all_items else 1
+            all_items.append({
+                'id': next_id,
+                'project_name': project_name,
+                'raw_text': raw_text,
+                'status': 'analyzed',
+                'status_display': 'Analiz Edildi',
+                'created_at': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'result': {
+                    'bdd_output': analysis['bdd_output'],
+                    'gherkin_output': analysis['gherkin_output'],
+                    'qa_result': analysis['qa_result'],
+                    'story_point': analysis['story_point'],
+                },
+            })
+            _set_session_items(request, all_items)
 
             messages.success(request, 'Gereksinim analizi başarıyla tamamlandı.')
-            return redirect('requirement_detail', pk=requirement.pk)
+            return redirect('requirement_detail', pk=next_id)
     else:
         form = RequirementForm()
 
@@ -57,7 +64,10 @@ def requirement_new(request):
 
 def requirement_detail(request, pk):
     """Analiz sonuç sayfası."""
-    requirement = get_object_or_404(Requirement.objects.select_related('project', 'result'), pk=pk)
+    all_items = _get_session_items(request)
+    requirement = next((item for item in all_items if item['id'] == pk), None)
+    if not requirement:
+        return render(request, 'requirements_app/requirement_detail.html', {'requirement': None}, status=404)
     return render(request, 'requirements_app/requirement_detail.html', {
         'requirement': requirement,
     })
@@ -65,7 +75,7 @@ def requirement_detail(request, pk):
 
 def requirement_list(request):
     """Geçmiş gereksinim listesi."""
-    requirements = Requirement.objects.select_related('project', 'result').order_by('-created_at')
+    requirements = list(reversed(_get_session_items(request)))
     return render(request, 'requirements_app/requirement_list.html', {
         'requirements': requirements,
     })

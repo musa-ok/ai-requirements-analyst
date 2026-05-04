@@ -17,7 +17,21 @@ const skeleton = document.getElementById("skeleton");
 const bddOutput = document.getElementById("bddOutput");
 
 const jiraBtn = document.getElementById("jiraBtn");
+const githubBtn = document.getElementById("githubBtn");
+const pdfBtn = document.getElementById("pdfBtn");
+const wordBtn = document.getElementById("wordBtn");
 const micBtn = document.getElementById("micBtn");
+const ragUploadInput = document.getElementById("rag-upload");
+const apiKeyInput = document.getElementById("apiKeyInput");
+const rememberApiKey = document.getElementById("rememberApiKey");
+const ragCollectionInput = document.getElementById("ragCollectionInput");
+
+const BACKEND_URL = "http://127.0.0.1:8000";
+const API_KEY_STORAGE = "ai_ra_api_key";
+const SESSION_STORAGE_KEY = "ai_ra_session_id";
+const sessionId = localStorage.getItem(SESSION_STORAGE_KEY) || crypto.randomUUID();
+localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+let lastAnalysisId = null;
 
 const projectData = {
     "musteri-portali": {
@@ -56,6 +70,21 @@ function renderProject(projectKey) {
     skeleton.classList.add("hidden");
     bddOutput.classList.remove("hidden");
     bddOutput.textContent = project.output;
+}
+
+function loadApiKeySettings() {
+    const savedKey = localStorage.getItem(API_KEY_STORAGE) || "";
+    apiKeyInput.value = savedKey;
+    rememberApiKey.checked = true;
+    ragCollectionInput.value = "default";
+}
+
+function persistApiKeySetting() {
+    if (rememberApiKey.checked) {
+        localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim());
+    } else {
+        localStorage.removeItem(API_KEY_STORAGE);
+    }
 }
 
 function toggleSwitchAnimation() {
@@ -107,7 +136,14 @@ function showShortcutToast() {
 }
 
 /* Analyze flow with shimmer skeleton */
-analyzeBtn.addEventListener("click", () => {
+analyzeBtn.addEventListener("click", async () => {
+    const requirementText = userInput.value.trim();
+    if (!requirementText) {
+        alert("Lutfen once bir gereksinim metni girin.");
+        return;
+    }
+
+    persistApiKeySetting();
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = "Analiz Ediliyor...";
 
@@ -115,23 +151,45 @@ analyzeBtn.addEventListener("click", () => {
     placeholderText.classList.add("hidden");
     skeleton.classList.remove("hidden");
 
-    window.setTimeout(() => {
+    try {
+        const response = await fetch(`${BACKEND_URL}/analyze`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                session_id: sessionId,
+                project_name: pageTitle.textContent.replace("Gereksinim Analizi - ", ""),
+                requirement_text: requirementText,
+                rag_collection: ragCollectionInput.value.trim() || "default",
+                api_key: apiKeyInput.value.trim()
+            })
+        });
+        if (!response.ok) {
+            throw new Error("Analiz servisi yanit vermedi.");
+        }
+        const data = await response.json();
+        lastAnalysisId = data.analysis_id;
         skeleton.classList.add("hidden");
         bddOutput.classList.remove("hidden");
-
         bddOutput.textContent = [
-            "Feature: Gereksinim Analizi",
+            "BDD Acceptance Criteria:",
+            ...data.acceptance_criteria.map((item) => `- ${item}`),
             "",
-            "  Scenario: Kullanıcı giriş gereksinimlerinin doğrulanması",
-            "    Given sistemde kimlik doğrulama gereksinimleri tanımlıdır",
-            "    When kullanıcı 'Analiz Et (BDD)' aksiyonunu tetikler",
-            "    Then sistem Given/When/Then formatında kabul kriterlerini üretir",
-            "    And çıktı Jira ekipleriyle paylaşılabilir formatta sunulur"
+            "Gherkin Scenarios:",
+            ...data.gherkin_scenarios,
+            "",
+            `Story Point: ${data.story_points}`,
+            `QA: ${data.qa_feedback}`
         ].join("\n");
-
+    } catch (error) {
+        skeleton.classList.add("hidden");
+        bddOutput.classList.remove("hidden");
+        bddOutput.textContent = `Hata: ${error.message}`;
+    } finally {
         analyzeBtn.disabled = false;
         analyzeBtn.textContent = "Analiz Et (BDD)";
-    }, 1500);
+    }
 });
 
 projectItems.forEach((item) => {
@@ -169,20 +227,78 @@ settingsModal.addEventListener("click", (event) => {
     }
 });
 
-/* Jira success state with checkmark animation */
-jiraBtn.addEventListener("click", () => {
-    if (jiraBtn.dataset.success === "1") return;
+rememberApiKey.addEventListener("change", persistApiKeySetting);
+apiKeyInput.addEventListener("input", persistApiKeySetting);
 
-    const originalText = jiraBtn.textContent;
-    jiraBtn.classList.add("success");
-    jiraBtn.textContent = "✓ Jira Senkronlandı";
-    jiraBtn.dataset.success = "1";
+ragUploadInput.addEventListener("change", async () => {
+    const file = ragUploadInput.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    const collectionName = ragCollectionInput.value.trim() || "default";
+    await fetch(`${BACKEND_URL}/rag/upload?session_id=${encodeURIComponent(sessionId)}&collection_name=${encodeURIComponent(collectionName)}`, {
+        method: "POST",
+        body: formData
+    });
+    alert("PDF RAG indeksine yuklendi.");
+});
 
-    window.setTimeout(() => {
-        jiraBtn.classList.remove("success");
-        jiraBtn.textContent = originalText;
-        jiraBtn.dataset.success = "0";
-    }, 2200);
+async function triggerFileDownload(path) {
+    if (!lastAnalysisId) {
+        alert("Once bir analiz olusturun.");
+        return;
+    }
+    window.open(`${BACKEND_URL}${path}/${sessionId}/${lastAnalysisId}`, "_blank");
+}
+
+pdfBtn.addEventListener("click", () => triggerFileDownload("/export/pdf"));
+wordBtn.addEventListener("click", () => triggerFileDownload("/export/word"));
+
+jiraBtn.addEventListener("click", async () => {
+    if (!lastAnalysisId) {
+        alert("Once bir analiz olusturun.");
+        return;
+    }
+    const jiraBaseUrl = prompt("Jira Base URL (https://domain.atlassian.net)");
+    const email = prompt("Jira e-posta");
+    const projectKey = prompt("Jira Project Key");
+    const apiToken = apiKeyInput.value.trim();
+    if (!jiraBaseUrl || !email || !projectKey || !apiToken) return;
+    const response = await fetch(`${BACKEND_URL}/export/jira/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            analysis_id: lastAnalysisId,
+            jira_base_url: jiraBaseUrl,
+            email,
+            api_token: apiToken,
+            project_key: projectKey
+        })
+    });
+    alert(response.ok ? "Jira gorevi olusturuldu." : "Jira export basarisiz.");
+});
+
+githubBtn.addEventListener("click", async () => {
+    if (!lastAnalysisId) {
+        alert("Once bir analiz olusturun.");
+        return;
+    }
+    const repository = prompt("GitHub repo (owner/repo)");
+    const filePath = prompt("Dosya yolu", "exports/analysis.md");
+    const token = apiKeyInput.value.trim();
+    if (!repository || !token) return;
+    const response = await fetch(`${BACKEND_URL}/export/github/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            analysis_id: lastAnalysisId,
+            repository,
+            token,
+            file_path: filePath || "exports/analysis.md"
+        })
+    });
+    alert(response.ok ? "GitHub export tamamlandi." : "GitHub export basarisiz.");
 });
 
 renderProject("musteri-portali");
+loadApiKeySettings();

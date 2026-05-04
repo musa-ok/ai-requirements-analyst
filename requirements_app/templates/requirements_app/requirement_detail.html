@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analiz #{{ requirement.pk }} — AI_RA</title>
+  <title>Analiz #{{ requirement.id }} — AI_RA</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
@@ -26,14 +26,18 @@
 <main>
   <div class="page-content">
     <div class="page-header">
+      {% if requirement %}
       <div class="header-row">
-        <h1>Analiz Sonucu <span class="req-id">#{{ requirement.pk }}</span></h1>
-        <span class="badge badge-{{ requirement.status }}">{{ requirement.get_status_display }}</span>
+        <h1>Analiz Sonucu <span class="req-id">#{{ requirement.id }}</span></h1>
+        <span class="badge badge-{{ requirement.status }}">{{ requirement.status_display }}</span>
       </div>
       <p class="meta">
-        <strong>Proje:</strong> {{ requirement.project.name }} &nbsp;·&nbsp;
-        <strong>Tarih:</strong> {{ requirement.created_at|date:"d.m.Y H:i" }}
+        <strong>Proje:</strong> {{ requirement.project_name }} &nbsp;·&nbsp;
+        <strong>Tarih:</strong> {{ requirement.created_at }}
       </p>
+      {% else %}
+      <h1>Analiz bulunamadi</h1>
+      {% endif %}
     </div>
 
     {% if messages %}
@@ -44,6 +48,7 @@
     </div>
     {% endif %}
 
+    {% if requirement %}
     <div class="result-grid">
 
       <!-- Ham Girdi -->
@@ -63,7 +68,7 @@
           <div class="result-card-icon">✅</div>
           <h2>BDD Çıktısı</h2>
         </div>
-        <div class="result-content">{{ requirement.result.bdd_output|linebreaksbr }}</div>
+      <div class="result-content">{{ requirement.result.bdd_output|linebreaksbr }}</div>
       </div>
 
       <!-- Gherkin -->
@@ -110,6 +115,7 @@
       {% endif %}
 
     </div>
+    {% endif %}
 
     <div class="detail-actions">
       <a href="{% url 'requirement_new' %}" class="btn btn-primary">+ Yeni Analiz</a>

@@ -57,6 +57,9 @@ DATABASES = {
     }
 }
 
+# Analyze sonuc verisini DB'ye yazmamak icin session'i istemci cookie'sinde tut.
+SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
