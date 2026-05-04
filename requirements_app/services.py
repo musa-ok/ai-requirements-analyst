@@ -37,10 +37,10 @@ def analyze_requirement(
             "API anahtari zorunludur. Analiz icin Gemini API anahtarini formda veya istekle gonderin."
         )
 
-    from backend.main import analysis_workflow
+    from backend.main import get_analysis_workflow
 
     text = raw_text.strip()
-    result = analysis_workflow.invoke(
+    result = get_analysis_workflow().invoke(
         {
             "project_name": project_name.strip() or "Web Projesi",
             "requirement_text": text,

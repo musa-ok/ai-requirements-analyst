@@ -280,7 +280,7 @@ def test_5_jira_export_contract_uses_expected_payload(
         captured["timeout"] = timeout
         return DummyResponse()
 
-    monkeypatch.setattr("backend.main.requests.post", fake_post)
+    monkeypatch.setattr("requests.post", fake_post)
 
     jira_payload = {
         "analysis_id": analysis_id,
@@ -322,7 +322,7 @@ def test_6_github_export_contract_uses_expected_payload(
         captured["timeout"] = timeout
         return DummyResponse()
 
-    monkeypatch.setattr("backend.main.requests.put", fake_put)
+    monkeypatch.setattr("requests.put", fake_put)
 
     payload = {
         "analysis_id": analysis_id,

@@ -6,21 +6,13 @@ import re
 from datetime import datetime
 from io import BytesIO
 from textwrap import wrap
-from typing import Dict, List, Literal, Mapping, TypedDict, cast
+from typing import Any, Dict, List, Literal, Mapping, TypedDict, cast
 from uuid import uuid4
 
-import requests
-from docx import Document
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pypdf import PdfReader
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 
 
 ModelType = Literal["gemini", "claude", "openai"]
@@ -105,6 +97,96 @@ _chroma_client = None
 session_store: Dict[str, Dict[str, dict]] = {}
 
 _FIB_STORY_POINTS = frozenset({1, 2, 3, 5, 8, 13})
+
+_compiled_analysis_workflow: Any = None
+
+
+def get_analysis_workflow() -> Any:
+    """LangGraph derlemesi ve LangChain yuklemesi yalnizca ilk analiz isteginde yapilir."""
+    global _compiled_analysis_workflow
+    if _compiled_analysis_workflow is None:
+        _compiled_analysis_workflow = _compile_analysis_workflow()
+    return _compiled_analysis_workflow
+
+
+def _compile_analysis_workflow() -> Any:
+    from langgraph.graph import END, StateGraph
+
+    def _build_chat_model(model_type: str, api_key: str) -> Any:
+        key = (api_key or "").strip()
+        if not key:
+            raise ValueError("API anahtari bos olamaz.")
+        mt = (model_type or "gemini").strip().lower()
+        if mt == "gemini":
+            from langchain_google_genai import ChatGoogleGenerativeAI
+
+            return ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash",
+                google_api_key=key,
+                temperature=0.2,
+            )
+        if mt == "claude":
+            from langchain_anthropic import ChatAnthropic
+
+            return ChatAnthropic(
+                model_name="claude-3-5-sonnet-20240620",
+                api_key=key,
+                temperature=0.2,
+            )
+        if mt == "openai":
+            from langchain_openai import ChatOpenAI
+
+            return ChatOpenAI(
+                model="gpt-4o",
+                api_key=key,
+                temperature=0.2,
+            )
+        raise ValueError(f"Desteklenmeyen model_type: {model_type!r}")
+
+    def analyst_agent(state: AnalysisState) -> AnalysisState:
+        llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
+        requirement_text = state["requirement_text"].strip()
+        rag_context = state.get("rag_context", "")
+        prompt = (
+            "You are the Analyst Agent of AI-RA.\n"
+            "Given project requirement text and optional RAG context, produce strict JSON only.\n"
+            "Return keys exactly: acceptance_criteria (array of 3-7 BDD Given/When/Then bullets), "
+            "gherkin_scenarios (array with 1-3 full valid Gherkin scenario blocks), "
+            "story_points (integer from Fibonacci set: 1,2,3,5,8,13).\n"
+            "Be specific, testable, and avoid hallucinations.\n\n"
+            f"Project Name:\n{state['project_name']}\n\n"
+            f"Requirement:\n{requirement_text}\n\n"
+            f"RAG Context:\n{rag_context or 'No additional context'}\n"
+        )
+        response = llm.invoke(prompt)
+        raw = _assistant_text_content(response.content)
+        data = _extract_json_payload(raw)
+        normalized = _normalize_analyst_payload(data)
+        return normalized
+
+    def qa_agent(state: AnalysisState) -> AnalysisState:
+        llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
+        prompt = (
+            "You are the QA Agent of AI-RA.\n"
+            "Evaluate the analyst output for consistency, ambiguity, and hallucination risk.\n"
+            "Respond in strict JSON only with keys: qa_status (passed|needs_review), qa_feedback (string).\n\n"
+            f"Requirement:\n{state['requirement_text']}\n\n"
+            f"BDD Acceptance Criteria:\n{json.dumps(state.get('acceptance_criteria', []), ensure_ascii=False)}\n\n"
+            f"Gherkin Scenarios:\n{json.dumps(state.get('gherkin_scenarios', []), ensure_ascii=False)}\n\n"
+            f"Story Points:\n{state.get('story_points')}\n"
+        )
+        response = llm.invoke(prompt)
+        raw = _assistant_text_content(response.content)
+        data = _extract_json_payload(raw)
+        return _normalize_qa_payload(data)
+
+    graph = StateGraph(AnalysisState)
+    graph.add_node("analyst_agent", analyst_agent)
+    graph.add_node("qa_agent", qa_agent)
+    graph.set_entry_point("analyst_agent")
+    graph.add_edge("analyst_agent", "qa_agent")
+    graph.add_edge("qa_agent", END)
+    return graph.compile()
 
 
 def _get_chroma_client():
@@ -219,84 +301,6 @@ def _normalize_qa_payload(data: dict) -> dict:
     return {"qa_status": status, "qa_feedback": feedback.strip()}
 
 
-def _build_chat_model(model_type: str, api_key: str) -> BaseChatModel:
-    key = (api_key or "").strip()
-    if not key:
-        raise ValueError("API anahtari bos olamaz.")
-    mt = (model_type or "gemini").strip().lower()
-    if mt == "gemini":
-        return ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=key,
-            temperature=0.2,
-        )
-    if mt == "claude":
-        from langchain_anthropic import ChatAnthropic
-
-        return ChatAnthropic(
-            model_name="claude-3-5-sonnet-20240620",
-            api_key=key,
-            temperature=0.2,
-        )
-    if mt == "openai":
-        from langchain_openai import ChatOpenAI
-
-        return ChatOpenAI(
-            model="gpt-4o",
-            api_key=key,
-            temperature=0.2,
-        )
-    raise ValueError(f"Desteklenmeyen model_type: {model_type!r}")
-
-
-def analyst_agent(state: AnalysisState) -> AnalysisState:
-    llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
-    requirement_text = state["requirement_text"].strip()
-    rag_context = state.get("rag_context", "")
-    prompt = (
-        "You are the Analyst Agent of AI-RA.\n"
-        "Given project requirement text and optional RAG context, produce strict JSON only.\n"
-        "Return keys exactly: acceptance_criteria (array of 3-7 BDD Given/When/Then bullets), "
-        "gherkin_scenarios (array with 1-3 full valid Gherkin scenario blocks), "
-        "story_points (integer from Fibonacci set: 1,2,3,5,8,13).\n"
-        "Be specific, testable, and avoid hallucinations.\n\n"
-        f"Project Name:\n{state['project_name']}\n\n"
-        f"Requirement:\n{requirement_text}\n\n"
-        f"RAG Context:\n{rag_context or 'No additional context'}\n"
-    )
-    response = llm.invoke(prompt)
-    raw = _assistant_text_content(response.content)
-    data = _extract_json_payload(raw)
-    normalized = _normalize_analyst_payload(data)
-    return normalized
-
-
-def qa_agent(state: AnalysisState) -> AnalysisState:
-    llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
-    prompt = (
-        "You are the QA Agent of AI-RA.\n"
-        "Evaluate the analyst output for consistency, ambiguity, and hallucination risk.\n"
-        "Respond in strict JSON only with keys: qa_status (passed|needs_review), qa_feedback (string).\n\n"
-        f"Requirement:\n{state['requirement_text']}\n\n"
-        f"BDD Acceptance Criteria:\n{json.dumps(state.get('acceptance_criteria', []), ensure_ascii=False)}\n\n"
-        f"Gherkin Scenarios:\n{json.dumps(state.get('gherkin_scenarios', []), ensure_ascii=False)}\n\n"
-        f"Story Points:\n{state.get('story_points')}\n"
-    )
-    response = llm.invoke(prompt)
-    raw = _assistant_text_content(response.content)
-    data = _extract_json_payload(raw)
-    return _normalize_qa_payload(data)
-
-
-graph = StateGraph(AnalysisState)
-graph.add_node("analyst_agent", analyst_agent)
-graph.add_node("qa_agent", qa_agent)
-graph.set_entry_point("analyst_agent")
-graph.add_edge("analyst_agent", "qa_agent")
-graph.add_edge("qa_agent", END)
-analysis_workflow = graph.compile()
-
-
 def _fetch_rag_context(collection_name: str, query_text: str) -> str:
     collection = _get_chroma_client().get_or_create_collection(name=collection_name)
     if collection.count() == 0:
@@ -306,9 +310,14 @@ def _fetch_rag_context(collection_name: str, query_text: str) -> str:
     return "\n".join(docs).strip()
 
 
+@app.get("/", tags=["system"])
+def root_health() -> dict:
+    return {"status": "ok"}
+
+
 @app.get("/health", tags=["system"])
 def health_check() -> dict:
-    return {"status": "ok", "mode": "stateless-export-only"}
+    return {"status": "ok"}
 
 
 @app.post("/rag/upload", tags=["rag"])
@@ -317,6 +326,8 @@ async def upload_rag_pdf(
     collection_name: str = "default",
     file: UploadFile = File(...),
 ) -> dict:
+    from pypdf import PdfReader
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Sadece PDF yuklenebilir.")
     reader = PdfReader(BytesIO(await file.read()))
@@ -342,7 +353,7 @@ def analyze_requirement(http_request: Request, body: AnalyzeRequest) -> Analysis
     if hdr_model in ("gemini", "claude", "openai"):
         model_type = cast(ModelType, hdr_model)
     try:
-        result = analysis_workflow.invoke(
+        result = get_analysis_workflow().invoke(
             {
                 "project_name": body.project_name,
                 "requirement_text": body.requirement_text,
@@ -381,6 +392,9 @@ def get_analysis(session_id: str, analysis_id: str) -> dict:
 
 @app.get("/export/pdf/{session_id}/{analysis_id}", tags=["export"])
 def export_pdf(session_id: str, analysis_id: str):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
     analysis = session_store.get(session_id, {}).get(analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analiz bulunamadi.")
@@ -403,6 +417,8 @@ def export_pdf(session_id: str, analysis_id: str):
 
 @app.get("/export/word/{session_id}/{analysis_id}", tags=["export"])
 def export_word(session_id: str, analysis_id: str):
+    from docx import Document
+
     analysis = session_store.get(session_id, {}).get(analysis_id)
     if not analysis:
         raise HTTPException(status_code=404, detail="Analiz bulunamadi.")
@@ -453,6 +469,8 @@ def _merge_jira_export(body: JiraExportRequest, headers: Mapping[str, str]) -> J
 
 @app.post("/export/github/{session_id}", tags=["export"])
 def export_to_github(session_id: str, http_request: Request, body: GithubExportRequest) -> dict:
+    import requests
+
     export_req = _merge_github_export(body, http_request.headers)
     if not export_req.repository.strip() or not export_req.token.strip():
         raise HTTPException(
@@ -478,6 +496,8 @@ def export_to_github(session_id: str, http_request: Request, body: GithubExportR
 
 @app.post("/export/jira/{session_id}", tags=["export"])
 def export_to_jira(session_id: str, http_request: Request, body: JiraExportRequest) -> dict:
+    import requests
+
     export_req = _merge_jira_export(body, http_request.headers)
     if not all(
         [

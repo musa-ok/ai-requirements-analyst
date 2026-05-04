@@ -32,9 +32,10 @@ class RequirementFormTests(TestCase):
 
 
 class ServiceTests(TestCase):
-    @patch("backend.main.analysis_workflow")
-    def test_analyze_requirement_returns_all_outputs(self, mock_workflow):
-        mock_workflow.invoke.return_value = {
+    @patch("backend.main.get_analysis_workflow")
+    def test_analyze_requirement_returns_all_outputs(self, mock_get_wf):
+        mock_wf = mock_get_wf.return_value
+        mock_wf.invoke.return_value = {
             "acceptance_criteria": [
                 "Given kullanici arama kutusuna yazar",
                 "When sonuclar filtrelenir",
