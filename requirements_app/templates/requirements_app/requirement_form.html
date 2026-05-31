@@ -68,18 +68,6 @@
             <a href="{% url 'home' %}" class="btn btn-secondary btn-cancel" id="analyzeCancelBtn" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← İptal</a>
           </div>
         </form>
-
-        <div id="analyzeOverlay" class="analyze-overlay analyze-overlay--hidden" aria-live="polite" aria-busy="true">
-          <div class="analyze-overlay-card">
-            <div class="analyze-spinner" aria-hidden="true"></div>
-            <p class="analyze-overlay-title">Yapay zeka analiz ediyor</p>
-            <p class="analyze-overlay-step" id="analyzeOverlayStep">Gereksinim okunuyor…</p>
-            <div class="analyze-progress-track" aria-hidden="true">
-              <div class="analyze-progress-bar"></div>
-            </div>
-            <p class="analyze-overlay-hint">Bu işlem birkaç saniye sürebilir. Lütfen bekleyin.</p>
-          </div>
-        </div>
       </div>
 
       <div class="info-box">
@@ -104,8 +92,30 @@
   </div>
 </footer>
 
+<div id="analyzeOverlay" class="analyze-overlay analyze-overlay--hidden" aria-live="polite" aria-busy="false">
+  <div class="analyze-overlay-card">
+    <div class="analyze-spinner" aria-hidden="true"></div>
+    <p class="analyze-overlay-title">Yapay zeka analiz ediyor</p>
+    <p class="analyze-overlay-step" id="analyzeOverlayStep">Gereksinim okunuyor…</p>
+    <div class="analyze-progress-track" aria-hidden="true">
+      <div class="analyze-progress-bar"></div>
+    </div>
+    <p class="analyze-overlay-hint">Bu işlem birkaç saniye sürebilir. Lütfen bekleyin.</p>
+  </div>
+</div>
+
 <script>
 (function () {
+  var analyzeSteps = [
+    "Gereksinim okunuyor…",
+    "QA ajanı tutarlılık kontrolü yapıyor…",
+    "BDD kabul kriterleri üretiliyor…",
+    "Gherkin senaryoları yazılıyor…",
+    "Story point hesaplanıyor…",
+  ];
+  var analyzeStepTimer = null;
+  var isSubmitting = false;
+
   function applyStoredConfig() {
     var cfg = typeof window.aiRaLoadConfig === "function" ? window.aiRaLoadConfig() : null;
     if (!cfg) return;
@@ -115,29 +125,16 @@
     if (apiInput && key && !apiInput.value.trim()) apiInput.value = key;
     if (mtInput && cfg.model_type) mtInput.value = cfg.model_type;
   }
-  function ensureKeyBeforeSubmit(event) {
+
+  function resolveApiKey() {
     var apiInput = document.getElementById("id_api_key");
-    if (apiInput && apiInput.value.trim()) {
-      showAnalyzeOverlay();
-      return;
-    }
+    if (apiInput && apiInput.value.trim()) return apiInput.value.trim();
     var cfg = typeof window.aiRaLoadConfig === "function" ? window.aiRaLoadConfig() : null;
     var key = cfg ? (cfg.llm_api_key || cfg.gemini_api_key || "").trim() : "";
-    if (key && apiInput) {
-      apiInput.value = key;
-      showAnalyzeOverlay();
-      return;
-    }
-    event.preventDefault();
+    if (key && apiInput) apiInput.value = key;
+    return key;
   }
-  var analyzeSteps = [
-    "Gereksinim okunuyor…",
-    "QA ajanı tutarlılık kontrolü yapıyor…",
-    "BDD kabul kriterleri üretiliyor…",
-    "Gherkin senaryoları yazılıyor…",
-    "Story point hesaplanıyor…",
-  ];
-  var analyzeStepTimer = null;
+
   function showAnalyzeOverlay() {
     var overlay = document.getElementById("analyzeOverlay");
     var btn = document.getElementById("analyzeSubmitBtn");
@@ -145,24 +142,63 @@
     var stepEl = document.getElementById("analyzeOverlayStep");
     if (!overlay) return;
     overlay.classList.remove("analyze-overlay--hidden");
+    overlay.setAttribute("aria-busy", "true");
     document.body.classList.add("analyze-overlay-open");
     if (btn) {
       btn.disabled = true;
       var label = btn.querySelector(".btn-label");
       if (label) label.textContent = "Analiz ediliyor…";
     }
-    if (cancel) cancel.setAttribute("aria-disabled", "true");
-    var stepIndex = 0;
+    if (cancel) {
+      cancel.style.pointerEvents = "none";
+      cancel.style.opacity = "0.5";
+    }
     if (stepEl) stepEl.textContent = analyzeSteps[0];
     clearInterval(analyzeStepTimer);
     analyzeStepTimer = setInterval(function () {
-      stepIndex = (stepIndex + 1) % analyzeSteps.length;
-      if (stepEl) stepEl.textContent = analyzeSteps[stepIndex];
+      var idx = analyzeSteps.indexOf(stepEl.textContent);
+      var next = analyzeSteps[(idx + 1 + analyzeSteps.length) % analyzeSteps.length];
+      if (stepEl) stepEl.textContent = next;
     }, 2200);
   }
-  document.addEventListener("DOMContentLoaded", applyStoredConfig);
-  var form = document.querySelector(".form-container form");
-  if (form) form.addEventListener("submit", ensureKeyBeforeSubmit);
+
+  function handleAnalyzeSubmit(event) {
+    if (isSubmitting) return;
+    event.preventDefault();
+
+    var projectInput = document.getElementById("id_project_name");
+    var rawInput = document.getElementById("id_raw_text");
+    if (!projectInput || !projectInput.value.trim()) {
+      alert("Proje adı zorunludur.");
+      return;
+    }
+    if (!rawInput || rawInput.value.trim().length < 10) {
+      alert("Gereksinim metni en az 10 karakter olmalıdır.");
+      return;
+    }
+    if (!resolveApiKey()) {
+      alert("API anahtarı gerekli. ⚙️ Ayarlar menüsünden kaydedin veya forma girin.");
+      return;
+    }
+
+    showAnalyzeOverlay();
+    isSubmitting = true;
+    var form = event.target;
+    // Tarayıcının overlay'i cizmesi icin kisa gecikme, sonra POST
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        setTimeout(function () {
+          form.submit();
+        }, 80);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    applyStoredConfig();
+    var form = document.querySelector(".form-container form");
+    if (form) form.addEventListener("submit", handleAnalyzeSubmit);
+  });
 })();
 </script>
 
