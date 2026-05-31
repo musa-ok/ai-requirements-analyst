@@ -1,1 +1,1 @@
-web: gunicorn ai_ra_saas.wsgi --log-file -
+web: sh scripts/start-django.sh

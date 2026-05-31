@@ -77,7 +77,7 @@ python -m pytest -m integration
 
 | Bileşen | Komut | Port |
 |---------|--------|------|
-| **django** | `gunicorn ai_ra_saas.wsgi --bind 0.0.0.0:$PORT` | `$PORT` (8080) |
+| **django** | `sh scripts/start-django.sh` (migrate + gunicorn) | `$PORT` (8080) |
 | **api** | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` | `$PORT` |
 
 Build (Django):
@@ -103,7 +103,7 @@ pip install -r requirements.txt
 
    **Service: `django`**
    - Build: `pip install -r requirements.txt && python manage.py collectstatic --noinput`
-   - Run: `gunicorn ai_ra_saas.wsgi --bind 0.0.0.0:$PORT --workers 2`
+   - Run: `sh scripts/start-django.sh`
    - Health: `/` (200)
    - Env:
      - `DEBUG=False`
