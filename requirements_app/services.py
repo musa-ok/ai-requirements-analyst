@@ -6,6 +6,23 @@ Cikti uretimi yalnizca Gemini (LangGraph) ile yapilir; sabit/mock metin kullanil
 from __future__ import annotations
 
 
+def _format_llm_error(exc: Exception) -> str:
+    """LLM/SDK hatalarini kullaniciya anlasilir Turkce mesaja cevirir."""
+    name = type(exc).__name__
+    text = str(exc).lower()
+    if name == "ResourceExhausted" or "429" in str(exc) or "quota" in text or "rate" in text:
+        return (
+            "Gemini API kotasi doldu (ucretsiz planda gemini-2.5-flash ~20 istek/gun). "
+            "Bir dakika bekleyip tekrar deneyin, Google AI Studio'da faturalandirma acin "
+            "veya baska bir API anahtari/model kullanin."
+        )
+    if "api key" in text or "api_key" in text or "invalid" in text and "key" in text:
+        return "API anahtari gecersiz veya reddedildi. Ayarlardan yeni bir anahtar girin."
+    if "permission" in text or "403" in str(exc):
+        return "API anahtarinin bu modele erisim izni yok."
+    return "Analiz sirasinda yapay zeka servisi hatasi olustu. Lutfen tekrar deneyin."
+
+
 def estimate_story_points(raw_text: str) -> int:
     """Gereksinim karmaşıklığına göre story point tahmini yapar (yardımcı fonksiyon)."""
     text = raw_text.strip()
@@ -40,15 +57,20 @@ def analyze_requirement(
     from backend.main import get_analysis_workflow
 
     text = raw_text.strip()
-    result = get_analysis_workflow().invoke(
-        {
-            "project_name": project_name.strip() or "Web Projesi",
-            "requirement_text": text,
-            "rag_context": "",
-            "api_key": key,
-            "model_type": (model_type or "gemini").strip().lower() or "gemini",
-        }
-    )
+    try:
+        result = get_analysis_workflow().invoke(
+            {
+                "project_name": project_name.strip() or "Web Projesi",
+                "requirement_text": text,
+                "rag_context": "",
+                "api_key": key,
+                "model_type": (model_type or "gemini").strip().lower() or "gemini",
+            }
+        )
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(_format_llm_error(exc)) from exc
 
     bdd_lines = "\n".join(f"- {item}" for item in result["acceptance_criteria"])
     bdd_output = bdd_lines

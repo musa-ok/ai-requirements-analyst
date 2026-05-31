@@ -62,6 +62,15 @@ class ServiceTests(TestCase):
     def test_story_points_integer(self):
         self.assertIsInstance(estimate_story_points("A" * 300), int)
 
+    def test_format_llm_error_quota(self):
+        from requirements_app.services import _format_llm_error
+
+        class ResourceExhausted(Exception):
+            pass
+
+        msg = _format_llm_error(ResourceExhausted("429 quota exceeded"))
+        self.assertIn("kotasi doldu", msg.lower())
+
 
 class ExportBridgeTests(TestCase):
     def test_register_in_process_creates_export_record(self):
