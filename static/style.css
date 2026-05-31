@@ -567,6 +567,105 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
 
 .form-actions .btn-primary { background: linear-gradient(135deg, var(--indigo), var(--violet)); }
 
+.form-actions .btn-primary:disabled {
+  opacity: 0.85;
+  cursor: wait;
+  transform: none;
+}
+
+body.analyze-overlay-open { overflow: hidden; }
+
+.analyze-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.analyze-overlay--hidden { display: none; }
+
+.analyze-overlay-card {
+  width: min(100%, 420px);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.75rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  text-align: center;
+  animation: analyze-card-in 0.35s ease;
+}
+
+@keyframes analyze-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.analyze-spinner {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 1.25rem;
+  border-radius: 50%;
+  border: 4px solid var(--slate-200);
+  border-top-color: var(--indigo);
+  animation: analyze-spin 0.85s linear infinite;
+}
+
+@keyframes analyze-spin {
+  to { transform: rotate(360deg); }
+}
+
+.analyze-overlay-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--slate-900);
+  margin-bottom: 0.5rem;
+}
+
+.analyze-overlay-step {
+  font-size: 0.92rem;
+  color: var(--indigo-dark);
+  font-weight: 600;
+  min-height: 1.4rem;
+  margin-bottom: 1.25rem;
+  animation: analyze-step-fade 0.4s ease;
+}
+
+@keyframes analyze-step-fade {
+  from { opacity: 0.4; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.analyze-progress-track {
+  height: 6px;
+  background: var(--slate-100);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.analyze-progress-bar {
+  height: 100%;
+  width: 35%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--indigo), var(--violet));
+  animation: analyze-progress 2.2s ease-in-out infinite;
+}
+
+@keyframes analyze-progress {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+.analyze-overlay-hint {
+  font-size: 0.8rem;
+  color: var(--slate-500);
+  margin: 0;
+}
+
 /* ─────────────────────────────────────────────
    RESULT GRID
    ───────────────────────────────────────────── */

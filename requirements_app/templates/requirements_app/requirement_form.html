@@ -62,10 +62,24 @@
           {{ form.model_type }}
 
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary">⚡ Analiz Et</button>
-            <a href="{% url 'home' %}" class="btn btn-secondary" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← İptal</a>
+            <button type="submit" class="btn btn-primary" id="analyzeSubmitBtn">
+              <span class="btn-label">⚡ Analiz Et</span>
+            </button>
+            <a href="{% url 'home' %}" class="btn btn-secondary btn-cancel" id="analyzeCancelBtn" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← İptal</a>
           </div>
         </form>
+
+        <div id="analyzeOverlay" class="analyze-overlay analyze-overlay--hidden" aria-live="polite" aria-busy="true">
+          <div class="analyze-overlay-card">
+            <div class="analyze-spinner" aria-hidden="true"></div>
+            <p class="analyze-overlay-title">Yapay zeka analiz ediyor</p>
+            <p class="analyze-overlay-step" id="analyzeOverlayStep">Gereksinim okunuyor…</p>
+            <div class="analyze-progress-track" aria-hidden="true">
+              <div class="analyze-progress-bar"></div>
+            </div>
+            <p class="analyze-overlay-hint">Bu işlem birkaç saniye sürebilir. Lütfen bekleyin.</p>
+          </div>
+        </div>
       </div>
 
       <div class="info-box">
@@ -103,12 +117,48 @@
   }
   function ensureKeyBeforeSubmit(event) {
     var apiInput = document.getElementById("id_api_key");
-    if (!apiInput || apiInput.value.trim()) return;
+    if (apiInput && apiInput.value.trim()) {
+      showAnalyzeOverlay();
+      return;
+    }
     var cfg = typeof window.aiRaLoadConfig === "function" ? window.aiRaLoadConfig() : null;
-    if (!cfg) return;
-    var key = (cfg.llm_api_key || cfg.gemini_api_key || "").trim();
-    if (key) apiInput.value = key;
-    else event.preventDefault();
+    var key = cfg ? (cfg.llm_api_key || cfg.gemini_api_key || "").trim() : "";
+    if (key && apiInput) {
+      apiInput.value = key;
+      showAnalyzeOverlay();
+      return;
+    }
+    event.preventDefault();
+  }
+  var analyzeSteps = [
+    "Gereksinim okunuyor…",
+    "QA ajanı tutarlılık kontrolü yapıyor…",
+    "BDD kabul kriterleri üretiliyor…",
+    "Gherkin senaryoları yazılıyor…",
+    "Story point hesaplanıyor…",
+  ];
+  var analyzeStepTimer = null;
+  function showAnalyzeOverlay() {
+    var overlay = document.getElementById("analyzeOverlay");
+    var btn = document.getElementById("analyzeSubmitBtn");
+    var cancel = document.getElementById("analyzeCancelBtn");
+    var stepEl = document.getElementById("analyzeOverlayStep");
+    if (!overlay) return;
+    overlay.classList.remove("analyze-overlay--hidden");
+    document.body.classList.add("analyze-overlay-open");
+    if (btn) {
+      btn.disabled = true;
+      var label = btn.querySelector(".btn-label");
+      if (label) label.textContent = "Analiz ediliyor…";
+    }
+    if (cancel) cancel.setAttribute("aria-disabled", "true");
+    var stepIndex = 0;
+    if (stepEl) stepEl.textContent = analyzeSteps[0];
+    clearInterval(analyzeStepTimer);
+    analyzeStepTimer = setInterval(function () {
+      stepIndex = (stepIndex + 1) % analyzeSteps.length;
+      if (stepEl) stepEl.textContent = analyzeSteps[stepIndex];
+    }, 2200);
   }
   document.addEventListener("DOMContentLoaded", applyStoredConfig);
   var form = document.querySelector(".form-container form");
