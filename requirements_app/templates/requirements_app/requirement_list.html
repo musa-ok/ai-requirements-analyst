@@ -18,7 +18,16 @@
         <h1>Geçmiş Analizler</h1>
         <p>Daha önce oluşturulan gereksinim analizleri.</p>
       </div>
+      <div class="page-header-actions">
       <a href="{% url 'requirement_new' %}" class="btn btn-primary">+ Yeni Analiz</a>
+      {% if requirements %}
+      <form method="post" action="{% url 'requirement_clear_history' %}" class="clear-history-form"
+            onsubmit="return confirm('Tüm geçmiş analizler silinecek. Emin misiniz?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light btn-danger-outline">↺ Yeniden Başlat</button>
+      </form>
+      {% endif %}
+      </div>
     </div>
 
     {% if requirements %}

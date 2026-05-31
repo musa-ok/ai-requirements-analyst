@@ -106,6 +106,36 @@
     {% endif %}
 
     <div class="detail-actions">
+      {% if requirement and requirement.result %}
+      <textarea id="raExportMarkdown" hidden readonly># AI-RA Analizi — {{ requirement.project_name }}
+
+## Gereksinim
+{{ requirement.raw_text }}
+
+## BDD Kabul Kriterleri
+{{ requirement.result.bdd_output }}
+
+## Gherkin Senaryolari
+{{ requirement.result.gherkin_output }}
+
+## QA Geri Bildirimi
+{{ requirement.result.qa_result }}
+
+## Story Point
+{{ requirement.result.story_point }}
+</textarea>
+      <button type="button" class="btn btn-secondary" id="downloadMdBtn">⬇ Markdown İndir</button>
+      {% if requirement.fastapi_analysis_id %}
+      <div class="detail-export-bar" id="detailExportBar">
+        <span class="detail-export-label">Dışa aktar:</span>
+        <button type="button" class="btn btn-secondary btn-export" id="exportPdfBtn">PDF</button>
+        <button type="button" class="btn btn-secondary btn-export" id="exportWordBtn">Word</button>
+        <button type="button" class="btn btn-secondary btn-export" id="exportJiraBtn">Jira</button>
+        <button type="button" class="btn btn-secondary btn-export" id="exportGithubBtn">GitHub</button>
+      </div>
+      <p class="detail-export-hint">Dışa aktarma için ⚙️ Ayarlar’da <strong>sunucu adresini</strong> ve gerekli erişim anahtarlarını tanımlayın.</p>
+      {% endif %}
+      {% endif %}
       <a href="{% url 'requirement_new' %}" class="btn btn-primary">+ Yeni Analiz</a>
       <a href="{% url 'requirement_list' %}" class="btn btn-secondary" style="background:var(--slate-100);color:var(--slate-700);border:1px solid var(--slate-200);">← Geçmiş Liste</a>
     </div>
@@ -117,6 +147,37 @@
     <p>AI_RA — Kurumsal gereksinim analizi ve kalite otomasyonu &copy; 2026</p>
   </div>
 </footer>
+
+{% if requirement and requirement.result %}
+<script src="{% static 'js/fastapi_exports.js' %}"></script>
+<script>
+(function () {
+  var btn = document.getElementById("downloadMdBtn");
+  var src = document.getElementById("raExportMarkdown");
+  if (btn && src) {
+    btn.addEventListener("click", function () {
+      var blob = new Blob([src.value], { type: "text/markdown;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "analysis-{{ requirement.id }}.md";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+  }
+  {% if requirement.fastapi_analysis_id %}
+  if (window.AiRaExports) {
+    AiRaExports.init({
+      sessionId: "{{ requirement.fastapi_session_id|escapejs }}",
+      analysisId: "{{ requirement.fastapi_analysis_id|escapejs }}",
+    });
+  }
+  {% endif %}
+})();
+</script>
+{% endif %}
 
 </body>
 </html>

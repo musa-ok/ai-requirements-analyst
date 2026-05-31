@@ -53,7 +53,9 @@ def analyze_requirement(
     bdd_lines = "\n".join(f"- {item}" for item in result["acceptance_criteria"])
     bdd_output = bdd_lines
     gherkin_output = "\n\n".join(result["gherkin_scenarios"])
-    qa_result = f"[{result['qa_status']}] {result['qa_feedback']}"
+    qa_status = result["qa_status"]
+    qa_label = "Onaylandi" if qa_status == "passed" else "Inceleme gerekli"
+    qa_result = f"[{qa_label}] {result['qa_feedback']}"
 
     return {
         "bdd_output": bdd_output,
@@ -61,4 +63,9 @@ def analyze_requirement(
         "qa_result": qa_result,
         "qa_valid": result["qa_status"] == "passed",
         "story_point": result["story_points"],
+        "acceptance_criteria": result["acceptance_criteria"],
+        "gherkin_scenarios": result["gherkin_scenarios"],
+        "story_points": result["story_points"],
+        "qa_feedback": result["qa_feedback"],
+        "qa_status": result["qa_status"],
     }

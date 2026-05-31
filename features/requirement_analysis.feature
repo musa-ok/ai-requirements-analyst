@@ -1,5 +1,4 @@
-# language: tr
-Feature: Gereksinim analizi oluşturma
+Feature: Gereksinim analizi olusturma
   Bir iş analisti olarak yazılım fikrimi sisteme girmek istiyorum;
   böylece sistem bu fikri BDD formatında yapılandırılmış gereksinime dönüştürsün.
 

@@ -3,6 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .forms import RequirementForm
 from .services import analyze_requirement
+from .export_bridge import register_from_analysis_result, fetch_analysis_from_api, _format_analysis_for_display
 
 
 SESSION_KEY = "requirement_analyses"
@@ -40,10 +41,17 @@ def requirement_new(request):
                     raw_text,
                     project_name=project_name,
                     api_key=form.cleaned_data['api_key'],
+                    model_type=form.cleaned_data.get('model_type') or 'gemini',
                 )
             except ValueError as exc:
                 messages.error(request, str(exc))
                 return render(request, 'requirements_app/requirement_form.html', {'form': form})
+            api_session_id, api_analysis_id = register_from_analysis_result(
+                request,
+                project_name=project_name,
+                requirement_text=raw_text,
+                analysis=analysis,
+            )
             all_items = _get_session_items(request)
             next_id = (all_items[-1]['id'] + 1) if all_items else 1
             all_items.append({
@@ -53,6 +61,8 @@ def requirement_new(request):
                 'status': 'analyzed',
                 'status_display': 'Analiz Edildi',
                 'created_at': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                'fastapi_session_id': api_session_id,
+                'fastapi_analysis_id': api_analysis_id,
                 'result': {
                     'bdd_output': analysis['bdd_output'],
                     'gherkin_output': analysis['gherkin_output'],
@@ -70,10 +80,33 @@ def requirement_new(request):
     return render(request, 'requirements_app/requirement_form.html', {'form': form})
 
 
+def _hydrate_requirement_result(requirement: dict) -> dict:
+    """Session'da sonuc yoksa FastAPI kaydindan doldurur."""
+    if requirement.get("result"):
+        return requirement
+    api_session_id = requirement.get("fastapi_session_id")
+    analysis_id = requirement.get("fastapi_analysis_id")
+    if not api_session_id or not analysis_id:
+        return requirement
+    api_payload = fetch_analysis_from_api(api_session_id, analysis_id)
+    if not api_payload:
+        return requirement
+    requirement = dict(requirement)
+    requirement["result"] = _format_analysis_for_display(api_payload)
+    if not requirement.get("raw_text"):
+        requirement["raw_text"] = api_payload.get("requirement_text") or ""
+    if not requirement.get("project_name"):
+        requirement["project_name"] = api_payload.get("project_name") or "Web Projesi"
+    return requirement
+
+
 def requirement_detail(request, pk):
     """Analiz sonuç sayfası."""
+    pk_int = int(pk)
     all_items = _get_session_items(request)
-    requirement = next((item for item in all_items if item['id'] == pk), None)
+    requirement = next((item for item in all_items if item['id'] == pk_int), None)
+    if requirement:
+        requirement = _hydrate_requirement_result(requirement)
     if not requirement:
         return render(request, 'requirements_app/requirement_detail.html', {'requirement': None}, status=404)
     return render(request, 'requirements_app/requirement_detail.html', {
@@ -87,3 +120,14 @@ def requirement_list(request):
     return render(request, 'requirements_app/requirement_list.html', {
         'requirements': requirements,
     })
+
+
+def requirement_clear_history(request):
+    """Tüm analiz geçmişini oturumdan siler."""
+    if request.method != 'POST':
+        return redirect('requirement_list')
+    request.session.pop(SESSION_KEY, None)
+    request.session.pop('ai_ra_fastapi_session_id', None)
+    request.session.modified = True
+    messages.success(request, 'Geçmiş analizler temizlendi. Yeni bir analizle başlayabilirsiniz.')
+    return redirect('home')

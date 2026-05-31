@@ -1,0 +1,38 @@
+# Render Blueprint — iki servis: Django UI + FastAPI AI Core
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: ai-ra-django
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn ai_ra_saas.wsgi --log-file -
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: FASTAPI_BASE_URL
+        sync: false
+
+  - type: web
+    name: ai-ra-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      - key: CHROMA_PERSIST_DIR
+        value: /var/data/chroma
+    disk:
+      name: chroma-data
+      mountPath: /var/data
+      sizeGB: 1

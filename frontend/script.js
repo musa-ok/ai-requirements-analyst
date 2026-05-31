@@ -147,7 +147,7 @@ function syncApiKeyPlaceholder() {
 function getBackendBaseUrl() {
     const trimmed = loadSettings().backend_base_url.trim();
     if (trimmed) return trimmed.replace(/\/$/, "");
-    return "http://127.0.0.1:8000";
+    return "http://127.0.0.1:8001";
 }
 
 function populateSettingsForm() {
@@ -333,15 +333,17 @@ analyzeBtn.addEventListener("click", async () => {
         lastAnalysisId = data.analysis_id;
         skeleton.classList.add("hidden");
         bddOutput.classList.remove("hidden");
+        const qaLabel =
+            data.qa_status === "passed" ? "Onaylandi" : "Inceleme gerekli";
         bddOutput.textContent = [
-            "BDD Acceptance Criteria:",
+            "BDD Kabul Kriterleri:",
             ...data.acceptance_criteria.map((item) => `- ${item}`),
             "",
-            "Gherkin Scenarios:",
+            "Gherkin Senaryolari:",
             ...data.gherkin_scenarios,
             "",
             `Story Point: ${data.story_points}`,
-            `QA (${data.qa_status}): ${data.qa_feedback}`,
+            `QA (${qaLabel}): ${data.qa_feedback}`,
         ].join("\n");
         showToast("Analiz tamamlandi.", "success");
     } catch (error) {
@@ -473,11 +475,13 @@ jiraBtn.addEventListener("click", async () => {
     const email = s.jira_email.trim();
     const token = s.jira_api_token.trim();
     const projectKey = s.jira_project_key.trim();
-    if (!baseUrl || !email || !token || !projectKey) {
-        showToast(
-            "Jira export icin temel alanlar ve Gelişmiş bölümündeki proje anahtarı gerekir. Ayarlar menüsünü kontrol edin.",
-            "error"
-        );
+    const missing = [];
+    if (!baseUrl) missing.push("Jira Base URL");
+    if (!email) missing.push("Jira Email");
+    if (!token) missing.push("Jira API Token");
+    if (!projectKey) missing.push("Jira proje anahtari");
+    if (missing.length) {
+        showToast("Jira export icin eksik alanlar: " + missing.join(", "), "error");
         return;
     }
 

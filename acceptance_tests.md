@@ -20,7 +20,7 @@ Scenario: Geçerli gereksinim girdisi ile analiz oluşturma
   And sistem Gherkin test senaryosu göstermelidir
 ```
 
-**Beklenen Sonuç**: Yeni Requirement ve AnalysisResult kaydı oluşur, sonuç sayfasına yönlendirilir.
+**Beklenen Sonuç**: Oturumda analiz kaydı oluşur, sonuç sayfasına yönlendirilir (ORM/DB kaydı yok).
 
 ---
 

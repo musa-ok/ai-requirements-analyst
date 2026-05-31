@@ -257,6 +257,33 @@ def test_4_pdf_export_contract_uses_session_memory(
 
 
 @pytest.mark.contract
+def test_4b_register_analysis_then_export_word(client: TestClient):
+    session_id = str(uuid4())
+    register_body = {
+        "session_id": session_id,
+        "project_name": "Register Contract",
+        "requirement_text": LOGIN_REQUIREMENT_TEXT,
+        "acceptance_criteria": [
+            "Given user is on login page",
+            "When valid credentials are submitted",
+            "Then access is granted",
+        ],
+        "gherkin_scenarios": [
+            "Feature: Login\n  Scenario: Success\n    Given user exists\n    When login\n    Then ok"
+        ],
+        "story_points": 3,
+        "qa_feedback": "OK",
+        "qa_status": "passed",
+    }
+    reg = client.post("/analysis/register", json=register_body)
+    assert reg.status_code == 200, reg.text
+    analysis_id = reg.json()["analysis_id"]
+    word = client.get(f"/export/word/{session_id}/{analysis_id}")
+    assert word.status_code == 200
+    assert "wordprocessingml" in word.headers.get("content-type", "")
+
+
+@pytest.mark.contract
 def test_5_jira_export_contract_uses_expected_payload(
     client: TestClient,
     seeded_session_for_export: dict,

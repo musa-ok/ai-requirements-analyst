@@ -17,16 +17,16 @@ The `FirstSaaSPrototype` in this repo is the HW5 submission: a working Django MV
 
 **Run locally:**
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install Django gunicorn whitenoise pytest pytest-django behave
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
 
-**Tests:** `python manage.py test` → 44/44 passing
+**Tests:** `python -m pytest` + `python manage.py test requirements_app` (ayrıntı: `STATUS.md`)
 
-**Deploy:** Render.com — `gunicorn ai_ra_saas.wsgi`
+**Deploy:** Render — `render.yaml` (Django + FastAPI) veya `Procfile` (Django only)
 
 ---
 
@@ -40,18 +40,23 @@ The main AI backend uses FastAPI, LangGraph, and Google Gemini for multi-agent r
 |:---|:---|
 | **Backend** | Python, FastAPI, LangGraph |
 | **LLM** | Google Gemini 2.5 Flash |
-| **Database** | PostgreSQL & ChromaDB (Vector Store) |
+| **Persistence** | Django: signed-cookie session · FastAPI: in-memory + opsiyonel Chroma disk |
+| **Vector store** | ChromaDB (in-process; `CHROMA_PERSIST_DIR` ile kalıcı) |
 | **Frontend** | Vanilla JavaScript, Modern CSS3 |
 
 **Run backend:**
 ```bash
 pip install -r requirements.txt
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
----
+**Run SPA (ayri terminal):**
+```bash
+cd frontend && python3 -m http.server 5500
+# Tarayici: http://127.0.0.1:5500 — Ayarlarda backend URL: http://127.0.0.1:8001
+```
 
-## Team
+**Tests:** `python -m pytest` (Django + FastAPI contract + health)
 
 | Role | Name |
 |:---|:---|

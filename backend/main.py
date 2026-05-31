@@ -81,14 +81,27 @@ class JiraExportRequest(BaseModel):
     issue_type: str = "Task"
 
 
+class RegisterAnalysisRequest(BaseModel):
+    session_id: str
+    project_name: str
+    requirement_text: str
+    acceptance_criteria: List[str]
+    gherkin_scenarios: List[str]
+    story_points: int
+    qa_feedback: str
+    qa_status: Literal["passed", "needs_review"]
+    rag_context_used: str = ""
+
+
 app = FastAPI(title="AI-RA Backend", version="2.0.0", description="Stateless AI-Driven Requirements Analyst API")
 
 _origins_raw = os.environ.get("CORS_ALLOW_ORIGINS", "*").strip()
 _cors_origins = [o.strip() for o in _origins_raw.split(",") if o.strip()] or ["*"]
+_cors_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=_cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -148,15 +161,21 @@ def _compile_analysis_workflow() -> Any:
         requirement_text = state["requirement_text"].strip()
         rag_context = state.get("rag_context", "")
         prompt = (
-            "You are the Analyst Agent of AI-RA.\n"
-            "Given project requirement text and optional RAG context, produce strict JSON only.\n"
-            "Return keys exactly: acceptance_criteria (array of 3-7 BDD Given/When/Then bullets), "
-            "gherkin_scenarios (array with 1-3 full valid Gherkin scenario blocks), "
-            "story_points (integer from Fibonacci set: 1,2,3,5,8,13).\n"
-            "Be specific, testable, and avoid hallucinations.\n\n"
-            f"Project Name:\n{state['project_name']}\n\n"
-            f"Requirement:\n{requirement_text}\n\n"
-            f"RAG Context:\n{rag_context or 'No additional context'}\n"
+            "Sen AI-RA Analist Ajanisin.\n"
+            "Tum metin ciktilari TURKCE olmalidir.\n"
+            "Yalnizca gecerli JSON don; baska aciklama ekleme.\n"
+            "acceptance_criteria: 3-7 elemanli dizi; her eleman TEK STRING olmali "
+            "(ornek: \"Given kullanici giris sayfasindadir, When gecerli bilgileri girer, Then erisim saglanir\").\n"
+            "gherkin_scenarios: 1-3 elemanli dizi; her eleman TEK STRING (cok satirli Gherkin blogu).\n"
+            "story_points: Fibonacci tamsayisi (1, 2, 3, 5, 8 veya 13).\n"
+            "Ornek JSON:\n"
+            '{"acceptance_criteria":["Given ...","When ...","Then ..."],'
+            '"gherkin_scenarios":["Feature: X\\n  Scenario: Y\\n    Given ..."],'
+            '"story_points":3}\n'
+            "Spesifik, test edilebilir ol; halusinasyon yapma.\n\n"
+            f"Proje Adi:\n{state['project_name']}\n\n"
+            f"Gereksinim:\n{requirement_text}\n\n"
+            f"RAG Baglami:\n{rag_context or 'Ek baglam yok'}\n"
         )
         response = llm.invoke(prompt)
         raw = _assistant_text_content(response.content)
@@ -167,12 +186,13 @@ def _compile_analysis_workflow() -> Any:
     def qa_agent(state: AnalysisState) -> AnalysisState:
         llm = _build_chat_model(state.get("model_type", "gemini"), state["api_key"])
         prompt = (
-            "You are the QA Agent of AI-RA.\n"
-            "Evaluate the analyst output for consistency, ambiguity, and hallucination risk.\n"
-            "Respond in strict JSON only with keys: qa_status (passed|needs_review), qa_feedback (string).\n\n"
-            f"Requirement:\n{state['requirement_text']}\n\n"
-            f"BDD Acceptance Criteria:\n{json.dumps(state.get('acceptance_criteria', []), ensure_ascii=False)}\n\n"
-            f"Gherkin Scenarios:\n{json.dumps(state.get('gherkin_scenarios', []), ensure_ascii=False)}\n\n"
+            "Sen AI-RA QA Ajanisin.\n"
+            "Analist ciktisini tutarlilik, belirsizlik ve halusinasyon riski acisindan degerlendir.\n"
+            "Yalnizca JSON don: qa_status (passed|needs_review), qa_feedback (string, TURKCE).\n"
+            "qa_feedback mutlaka Turkce ve anlasilir olmali.\n\n"
+            f"Gereksinim:\n{state['requirement_text']}\n\n"
+            f"BDD Kabul Kriterleri:\n{json.dumps(state.get('acceptance_criteria', []), ensure_ascii=False)}\n\n"
+            f"Gherkin Senaryolari:\n{json.dumps(state.get('gherkin_scenarios', []), ensure_ascii=False)}\n\n"
             f"Story Points:\n{state.get('story_points')}\n"
         )
         response = llm.invoke(prompt)
@@ -194,34 +214,39 @@ def _get_chroma_client():
     if _chroma_client is None:
         import chromadb
 
-        _chroma_client = chromadb.Client()
+        persist_dir = os.environ.get("CHROMA_PERSIST_DIR", "").strip()
+        if persist_dir:
+            _chroma_client = chromadb.PersistentClient(path=persist_dir)
+        else:
+            _chroma_client = chromadb.Client()
     return _chroma_client
 
 
 def _build_markdown(analysis: dict) -> str:
+    qa_label = "Onaylandi" if analysis.get("qa_status") == "passed" else "Inceleme gerekli"
     lines = [
-        f"# AI-RA Analysis - {analysis['project_name']}",
+        f"# AI-RA Analizi — {analysis['project_name']}",
         "",
-        f"- Analysis ID: {analysis['analysis_id']}",
-        f"- Session ID: {analysis['session_id']}",
-        f"- Generated At: {analysis['generated_at']}",
-        f"- Story Points: {analysis['story_points']}",
-        f"- QA Status: {analysis['qa_status']}",
+        f"- Analiz ID: {analysis['analysis_id']}",
+        f"- Oturum ID: {analysis['session_id']}",
+        f"- Olusturulma: {analysis['generated_at']}",
+        f"- Story Point: {analysis['story_points']}",
+        f"- QA Durumu: {qa_label}",
         "",
-        "## Requirement",
+        "## Gereksinim",
         analysis["requirement_text"],
         "",
-        "## BDD Acceptance Criteria",
+        "## BDD Kabul Kriterleri",
     ]
     lines.extend([f"- {item}" for item in analysis["acceptance_criteria"]])
     lines.append("")
-    lines.append("## Gherkin Scenarios")
+    lines.append("## Gherkin Senaryolari")
     for scenario in analysis["gherkin_scenarios"]:
         lines.append("```gherkin")
         lines.append(scenario)
         lines.append("```")
         lines.append("")
-    lines.append("## QA Feedback")
+    lines.append("## QA Geri Bildirimi")
     lines.append(analysis["qa_feedback"])
     return "\n".join(lines).strip()
 
@@ -240,24 +265,79 @@ def _extract_json_payload(text: str) -> dict:
     return json.loads(match.group(1))
 
 
+def _coerce_text_item(item) -> str:
+    """Model bazen string yerine nesne/liste dondurur; BDD maddesine cevir."""
+    if item is None:
+        return ""
+    if isinstance(item, str):
+        return item.strip()
+    if isinstance(item, (int, float, bool)):
+        return str(item).strip()
+    if isinstance(item, dict):
+        given = item.get("given") or item.get("Given") or item.get("GIVEN")
+        when = item.get("when") or item.get("When") or item.get("WHEN")
+        then = item.get("then") or item.get("Then") or item.get("THEN")
+        if any((given, when, then)):
+            parts: List[str] = []
+
+            def _bdd_part(label: str, val) -> str:
+                text = str(val).strip()
+                if not text:
+                    return ""
+                low = text.lower()
+                if low.startswith(label.lower()):
+                    return text
+                return f"{label} {text}"
+
+            for label, val in (("Given", given), ("When", when), ("Then", then)):
+                part = _bdd_part(label, val)
+                if part:
+                    parts.append(part)
+            return ", ".join(parts)
+        for key in ("text", "criterion", "description", "content", "bdd", "acceptance_criteria"):
+            if key in item and item[key]:
+                return _coerce_text_item(item[key])
+        str_vals = [str(v).strip() for v in item.values() if v is not None and str(v).strip()]
+        return " — ".join(str_vals)
+    if isinstance(item, (list, tuple)):
+        parts = [_coerce_text_item(x) for x in item]
+        return ", ".join(p for p in parts if p)
+    return str(item).strip()
+
+
+def _coerce_string_list(raw, *, field_name: str, min_items: int, max_items: int) -> List[str]:
+    items = raw
+    if isinstance(items, str):
+        items = [line.strip(" •-\t") for line in items.splitlines() if line.strip()]
+    if not isinstance(items, list) or not items:
+        raise ValueError(f"{field_name} bos veya gecersiz.")
+    coerced = [_coerce_text_item(x) for x in items]
+    coerced = [x for x in coerced if x]
+    if len(coerced) < min_items:
+        raise ValueError(
+            f"{field_name} yeterli dolu madde icermiyor (en az {min_items}, alinan {len(coerced)})."
+        )
+    if len(coerced) > max_items:
+        coerced = coerced[:max_items]
+    return coerced
+
+
 def _normalize_analyst_payload(data: dict) -> dict:
     if not isinstance(data, dict):
         raise ValueError("Model ciktisi bir JSON nesnesi olmalidir.")
-    ac = data.get("acceptance_criteria")
-    gs = data.get("gherkin_scenarios")
+    ac = _coerce_string_list(
+        data.get("acceptance_criteria"),
+        field_name="acceptance_criteria",
+        min_items=3,
+        max_items=7,
+    )
+    gs = _coerce_string_list(
+        data.get("gherkin_scenarios"),
+        field_name="gherkin_scenarios",
+        min_items=1,
+        max_items=3,
+    )
     sp = data.get("story_points")
-    if not isinstance(ac, list) or not ac:
-        raise ValueError("acceptance_criteria bos veya gecersiz.")
-    if not all(isinstance(x, str) and x.strip() for x in ac):
-        raise ValueError("acceptance_criteria tum elemanlari dolu metin olmalidir.")
-    if len(ac) < 3 or len(ac) > 7:
-        raise ValueError("acceptance_criteria 3 ile 7 madde arasinda olmalidir.")
-    if not isinstance(gs, list) or not gs:
-        raise ValueError("gherkin_scenarios bos veya gecersiz.")
-    if not all(isinstance(x, str) and x.strip() for x in gs):
-        raise ValueError("gherkin_scenarios tum elemanlari dolu metin olmalidir.")
-    if len(gs) < 1 or len(gs) > 3:
-        raise ValueError("gherkin_scenarios 1 ile 3 blok arasinda olmalidir.")
     try:
         sp_int = int(sp)
     except (TypeError, ValueError) as exc:
@@ -265,8 +345,8 @@ def _normalize_analyst_payload(data: dict) -> dict:
     if sp_int not in _FIB_STORY_POINTS:
         raise ValueError("story_points yalnizca 1, 2, 3, 5, 8 veya 13 olabilir.")
     return {
-        "acceptance_criteria": [x.strip() for x in ac],
-        "gherkin_scenarios": [x.strip() for x in gs],
+        "acceptance_criteria": ac,
+        "gherkin_scenarios": gs,
         "story_points": sp_int,
     }
 
@@ -388,6 +468,27 @@ def get_analysis(session_id: str, analysis_id: str) -> dict:
     if not analysis:
         raise HTTPException(status_code=404, detail="Analiz bulunamadi.")
     return analysis
+
+
+@app.post("/analysis/register", tags=["analysis"])
+def register_analysis(body: RegisterAnalysisRequest) -> dict:
+    """Django veya diger istemcilerin export oncesi analiz kaydi olusturmasi icin."""
+    analysis_id = str(uuid4())
+    payload = {
+        "session_id": body.session_id,
+        "analysis_id": analysis_id,
+        "project_name": body.project_name,
+        "requirement_text": body.requirement_text,
+        "acceptance_criteria": body.acceptance_criteria,
+        "gherkin_scenarios": body.gherkin_scenarios,
+        "story_points": body.story_points,
+        "qa_feedback": body.qa_feedback,
+        "qa_status": body.qa_status,
+        "rag_context_used": body.rag_context_used,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+    }
+    session_store.setdefault(body.session_id, {})[analysis_id] = payload
+    return {"session_id": body.session_id, "analysis_id": analysis_id}
 
 
 @app.get("/export/pdf/{session_id}/{analysis_id}", tags=["export"])

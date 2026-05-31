@@ -6,4 +6,5 @@ urlpatterns = [
     path('requirements/', views.requirement_list, name='requirement_list'),
     path('requirements/new/', views.requirement_new, name='requirement_new'),
     path('requirements/<int:pk>/', views.requirement_detail, name='requirement_detail'),
+    path('requirements/clear/', views.requirement_clear_history, name='requirement_clear_history'),
 ]

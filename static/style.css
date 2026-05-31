@@ -273,8 +273,22 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
   backdrop-filter: blur(8px);
 }
 
-.btn-secondary:hover {
-  background: rgba(255,255,255,.18);
+/* Açık arka planlı sayfalarda (analiz sonucu vb.) okunabilir ikincil buton */
+.detail-actions .btn-secondary,
+.detail-actions .btn-export {
+  background: var(--white);
+  color: var(--slate-800);
+  border: 1px solid var(--slate-300);
+  backdrop-filter: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  font-weight: 600;
+}
+
+.detail-actions .btn-secondary:hover,
+.detail-actions .btn-export:hover {
+  background: var(--slate-50);
+  border-color: var(--indigo);
+  color: var(--indigo-dark);
   transform: translateY(-1px);
 }
 
@@ -441,6 +455,27 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
 }
 
 .page-header p { color: var(--slate-500); font-size: .95rem; }
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.clear-history-form { margin: 0; }
+
+.btn-danger-outline {
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  background: #fff;
+}
+
+.btn-danger-outline:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #991b1b;
+}
 
 .header-row {
   display: flex;
@@ -654,7 +689,28 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
   border-radius: var(--radius-sm);
 }
 
-.detail-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+.detail-actions { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
+.detail-export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+.detail-export-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--slate-600);
+}
+.detail-export-hint {
+  width: 100%;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--slate-500);
+}
+.btn-export { font-size: 0.85rem; padding: 0.45rem 0.75rem; }
+.ra-toast--error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
 
 /* ─────────────────────────────────────────────
    INFO BOX
@@ -933,7 +989,8 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
   color: var(--slate-700);
 }
 
-.ra-field input {
+.ra-field input,
+.ra-field select {
   font-weight: 500;
   border: 1px solid var(--slate-200);
   border-radius: var(--radius-sm);
@@ -941,7 +998,8 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
   font-size: 0.875rem;
 }
 
-.ra-field input:focus {
+.ra-field input:focus,
+.ra-field select:focus {
   outline: none;
   border-color: var(--indigo);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
@@ -949,8 +1007,8 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
 
 .ra-req {
   font-style: normal;
-  font-weight: 600;
-  color: var(--rose);
+  font-weight: 500;
+  color: var(--slate-500);
   font-size: 0.72rem;
 }
 
@@ -1108,7 +1166,8 @@ nav a.active { color: var(--white); background: rgba(99,102,241,.25); }
     max-width: none;
   }
 
-  .ra-field input {
+  .ra-field input,
+  .ra-field select {
     min-height: 44px;
     font-size: 16px;
   }

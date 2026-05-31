@@ -24,8 +24,16 @@
 
     <div class="ra-settings-fields">
       <label class="ra-field">
-        <span>Gemini API Key <em class="ra-req">zorunlu</em></span>
-        <input type="password" id="raGeminiKey" autocomplete="off" placeholder="Google AI Studio anahtarı" />
+        <span>Yapay Zeka Modeli Seçin</span>
+        <select id="raModelType" autocomplete="off">
+          <option value="gemini">Gemini 2.5 Flash</option>
+          <option value="claude">Claude 3.5 Sonnet</option>
+          <option value="openai">GPT-4o</option>
+        </select>
+      </label>
+      <label class="ra-field">
+        <span id="raApiKeyLabel">API anahtarı</span> <em class="ra-req">zorunlu</em>
+        <input type="password" id="raGeminiKey" autocomplete="off" placeholder="Google AI Studio / Gemini API anahtarı" />
       </label>
       <label class="ra-field">
         <span>Jira Base URL</span>
@@ -40,25 +48,25 @@
         <input type="password" id="raJiraToken" autocomplete="off" />
       </label>
       <label class="ra-field">
+        <span>Jira proje anahtarı</span>
+        <input type="text" id="raJiraProject" autocomplete="off" placeholder="TEAM, PROJ vb." />
+      </label>
+      <label class="ra-field">
         <span>GitHub Token</span>
         <input type="password" id="raGithubToken" autocomplete="off" placeholder="Kişisel erişim token (PAT)" />
       </label>
     </div>
 
     <details class="ra-advanced" id="raAdvancedPanel">
-      <summary class="ra-advanced-summary">Gelişmiş — API adresi, RAG ve export</summary>
+      <summary class="ra-advanced-summary">Gelişmiş — sunucu adresi, RAG ve dışa aktarma</summary>
       <div class="ra-advanced-grid">
         <label class="ra-field">
-          <span>Backend API taban URL</span>
-          <input type="url" id="raBackendUrl" autocomplete="off" placeholder="https://api-sizin.onrender.com" />
+          <span>Analiz sunucu adresi</span>
+          <input type="url" id="raBackendUrl" autocomplete="off" placeholder="https://api-sizin.ornek.com" />
         </label>
         <label class="ra-field">
           <span>RAG koleksiyon adı</span>
           <input type="text" id="raRagCollection" autocomplete="off" placeholder="default" />
-        </label>
-        <label class="ra-field">
-          <span>Jira proje anahtarı</span>
-          <input type="text" id="raJiraProject" autocomplete="off" placeholder="TEAM, PROJ vb." />
         </label>
         <label class="ra-field">
           <span>GitHub repository (owner/repo)</span>
@@ -89,6 +97,8 @@
   var STORAGE_KEY = "ai_ra_user_config";
   function defaults() {
     return {
+      model_type: "gemini",
+      llm_api_key: "",
       gemini_api_key: "",
       backend_base_url: "",
       jira_base_url: "",
@@ -106,11 +116,28 @@
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return defaults();
-      return Object.assign(defaults(), JSON.parse(raw));
+      var merged = Object.assign(defaults(), JSON.parse(raw));
+      if (!merged.llm_api_key && merged.gemini_api_key) {
+        merged.llm_api_key = merged.gemini_api_key;
+      }
+      if (!merged.model_type) merged.model_type = "gemini";
+      return merged;
     } catch (e) {
       return defaults();
     }
   }
+  function syncApiKeyPlaceholder() {
+    var mt = document.getElementById("raModelType");
+    var input = document.getElementById("raGeminiKey");
+    if (!mt || !input) return;
+    var placeholders = {
+      gemini: "Google AI Studio / Gemini API anahtarı",
+      claude: "Anthropic API Key girin",
+      openai: "OpenAI API Key girin",
+    };
+    input.placeholder = placeholders[mt.value] || placeholders.gemini;
+  }
+  window.aiRaLoadConfig = load;
   function save(partial) {
     var merged = Object.assign(load(), partial || {});
     localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
@@ -128,7 +155,10 @@
   }
   function openModal() {
     var s = load();
-    document.getElementById("raGeminiKey").value = s.gemini_api_key || "";
+    var mt = document.getElementById("raModelType");
+    if (mt) mt.value = ["gemini", "claude", "openai"].indexOf(s.model_type) >= 0 ? s.model_type : "gemini";
+    document.getElementById("raGeminiKey").value = s.llm_api_key || s.gemini_api_key || "";
+    syncApiKeyPlaceholder();
     document.getElementById("raJiraUrl").value = s.jira_base_url || "";
     document.getElementById("raJiraEmail").value = s.jira_email || "";
     document.getElementById("raJiraToken").value = s.jira_api_token || "";
@@ -145,12 +175,19 @@
     document.getElementById("raSettingsModal").classList.add("ra-settings-modal--hidden");
   }
   document.getElementById("openSettingsModalBtn").addEventListener("click", openModal);
+  var raModelTypeEl = document.getElementById("raModelType");
+  if (raModelTypeEl) raModelTypeEl.addEventListener("change", syncApiKeyPlaceholder);
   document.querySelectorAll("[data-close-settings]").forEach(function (node) {
     node.addEventListener("click", closeModal);
   });
   document.getElementById("raSettingsSaveBtn").addEventListener("click", function () {
+    var keyVal = document.getElementById("raGeminiKey").value.trim();
+    var mtEl = document.getElementById("raModelType");
+    var mt = mtEl && ["gemini", "claude", "openai"].indexOf(mtEl.value) >= 0 ? mtEl.value : "gemini";
     save({
-      gemini_api_key: document.getElementById("raGeminiKey").value.trim(),
+      model_type: mt,
+      llm_api_key: keyVal,
+      gemini_api_key: keyVal,
       jira_base_url: document.getElementById("raJiraUrl").value.trim(),
       jira_email: document.getElementById("raJiraEmail").value.trim(),
       jira_api_token: document.getElementById("raJiraToken").value.trim(),

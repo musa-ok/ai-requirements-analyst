@@ -1,0 +1,55 @@
+# DigitalOcean App Platform spec
+# Docs: https://docs.digitalocean.com/products/app-platform/reference/app-spec/
+#
+# Deploy sonrasi ALLOWED_HOSTS, FASTAPI_BASE_URL ve CORS_ALLOW_ORIGINS degerlerini
+# kendi *.ondigitalocean.app adreslerinizle guncelleyin.
+
+name: ai-ra
+region: fra1
+
+services:
+  - name: django
+    github:
+      repo: musa-ok/ai-requirements-analyst
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: python
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+    build_command: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    run_command: gunicorn ai_ra_saas.wsgi --bind 0.0.0.0:$PORT --workers 2
+    health_check:
+      http_path: /
+    envs:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: ALLOWED_HOSTS
+        value: YOUR_DJANGO_APP_DOMAIN
+      - key: FASTAPI_BASE_URL
+        value: https://YOUR_API_APP_DOMAIN
+
+  - name: api
+    github:
+      repo: musa-ok/ai-requirements-analyst
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: python
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    http_port: 8080
+    build_command: pip install -r requirements.txt
+    run_command: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    health_check:
+      http_path: /health
+    envs:
+      - key: CORS_ALLOW_ORIGINS
+        value: https://YOUR_DJANGO_APP_DOMAIN
+      - key: CHROMA_PERSIST_DIR
+        value: /data/chroma
+    # App Platform UI'dan Volume ekleyin: mount /data (1GB)

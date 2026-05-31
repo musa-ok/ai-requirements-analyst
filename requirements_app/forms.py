@@ -23,13 +23,24 @@ class RequirementForm(forms.Form):
     )
     api_key = forms.CharField(
         label='Gemini API anahtarı',
+        required=False,
         widget=forms.PasswordInput(
             attrs={
                 'class': 'form-input',
-                'placeholder': 'Google AI Studio anahtarı (sunucuda saklanmaz)',
+                'placeholder': 'Boş bırakılırsa Ayarlar menüsündeki anahtar kullanılır',
                 'autocomplete': 'off',
             },
         ),
+    )
+    model_type = forms.ChoiceField(
+        choices=[
+            ('gemini', 'Gemini 2.5 Flash'),
+            ('claude', 'Claude 3.5 Sonnet'),
+            ('openai', 'GPT-4o'),
+        ],
+        initial='gemini',
+        widget=forms.HiddenInput(),
+        required=False,
     )
 
     def clean_raw_text(self):
@@ -49,6 +60,14 @@ class RequirementForm(forms.Form):
 
     def clean_api_key(self):
         key = self.cleaned_data.get('api_key', '').strip()
-        if not key:
-            raise forms.ValidationError('Gemini API anahtarı zorunludur.')
-        return key
+        if key:
+            return key
+        raise forms.ValidationError(
+            'API anahtarı zorunludur. Forma girin veya ⚙️ Ayarlar menüsünden kaydedin.'
+        )
+
+    def clean_model_type(self):
+        mt = (self.cleaned_data.get('model_type') or 'gemini').strip().lower()
+        if mt not in {'gemini', 'claude', 'openai'}:
+            return 'gemini'
+        return mt

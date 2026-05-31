@@ -53,21 +53,18 @@ Railway -> ilgili service -> **Variables** alanindan girin.
 
 ### 5.1 Ortak / Guvenlik
 
-- `SECRET_KEY`: Django secret key (zorunlu)
-- `DEBUG`: `False` (prod icin onerilir)
-- `ALLOWED_HOSTS`: Railway domain(ler)i (ornek: `your-app.up.railway.app`)
+- `SECRET_KEY`: Django secret key (**production zorunlu** — varsayilan anahtar DEBUG=False iken reddedilir)
+- `DEBUG`: `False` (prod)
+- `ALLOWED_HOSTS`: deploy domain(leri)
+- `FASTAPI_BASE_URL`: Django servisinin export kaydi icin FastAPI adresi (ornek: `https://ai-ra-api.onrender.com`)
 
-### 5.2 LLM / Gemini
+### 5.2 LLM / Gemini (stateless)
 
-- `TEST_GEMINI_API_KEY`: onerilen birincil anahtar
-- `GOOGLE_API_KEY`: alternatif fallback
-- `GEMINI_API_KEY`: alternatif fallback
+API anahtarlari **sunucu ortam degiskeninden okunmaz**. Istemci (SPA veya form) her `/analyze` isteginde JSON govdesinde `api_key` gonderir.
 
-Uygulama anahtar cozme sirasi:
-1. Request icindeki `api_key`
-2. `TEST_GEMINI_API_KEY`
-3. `GOOGLE_API_KEY`
-4. `GEMINI_API_KEY`
+Opsiyonel (yalnizca lokal entegrasyon testleri icin):
+
+- `TEST_GEMINI_API_KEY`: `pytest -m integration` fixture'lari icin
 
 ### 5.3 Jira Export
 
@@ -76,7 +73,12 @@ Uygulama anahtar cozme sirasi:
 - `JIRA_API_TOKEN`
 - `JIRA_PROJECT_KEY`
 
-### 5.4 GitHub Export
+### 5.4 FastAPI servisi
+
+- `CORS_ALLOW_ORIGINS`: SPA/Django origin listesi (virgülle ayrılmış)
+- `CHROMA_PERSIST_DIR`: RAG indeksi için disk yolu (Render disk mount önerilir)
+
+### 5.5 GitHub Export (istemci / entegrasyon testleri)
 
 - `GITHUB_TOKEN` (repo write yetkili)
 - `GITHUB_REPOSITORY` (ornek: `org/repo`)
@@ -110,7 +112,8 @@ Onerilen komutlar:
 1. Django endpoint:
    - `GET /` -> 200
 2. FastAPI health:
-   - `GET /health` -> `{"status":"ok","mode":"stateless-export-only"}`
+   - `GET /health` -> `{"status":"ok"}`
+   - `GET /` -> `{"status":"ok"}`
 3. Analyze akisi:
    - `POST /analyze` ile ornek requirement gonderin.
 4. Export akisi:

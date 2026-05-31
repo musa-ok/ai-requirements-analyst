@@ -1,20 +1,53 @@
-# Environment files
+# ── Ortam / gizli ──
 .env
+.env.local
+.env.*.local
 
-# Python cache
+# ── Python ──
 __pycache__/
-*.pyc
-*.pyo
-
-# Virtual environments
+*.py[cod]
+*$py.class
+*.so
+.Python
 .venv/
 venv/
 env/
 
-# macOS
-.DS_Store
-
-# Django
+# ── Django ──
 db.sqlite3
+db.sqlite3-journal
 staticfiles/
+media/
+
+# ── Test / coverage ──
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+
+# ── macOS / IDE / Cursor ──
+.DS_Store
+.idea/
+.vscode/
+.cursor/
+
+# ── RAG / vektor verisi ──
+chroma/
+/data/
+*.chroma
+
+# ── Log / gecici ──
+*.log
+*.tmp
+*.swp
+
+# ── Video / ekran goruntusu (lokal demo) ──
+*.mov
+*.mp4
+*.mkv
+assets/
+
+# ── Arsiv ──
 *.zip
+*.tar.gz

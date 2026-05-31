@@ -140,24 +140,24 @@
                     <input id="settingJiraToken" type="password" autocomplete="off" />
                 </label>
                 <label>
+                    Jira proje anahtarı
+                    <input id="settingJiraProject" type="text" autocomplete="off" placeholder="TEAM, PROJ vb." />
+                </label>
+                <label>
                     GitHub Token
                     <input id="settingGithubToken" type="password" autocomplete="off" placeholder="Kişisel erişim token (PAT)" />
                 </label>
             </div>
             <details class="settings-advanced" id="settingsAdvanced">
-                <summary class="settings-advanced-summary">Gelişmiş — API adresi, RAG ve export</summary>
+                <summary class="settings-advanced-summary">Gelişmiş — sunucu adresi, RAG ve dışa aktarma</summary>
                 <div class="settings-grid settings-grid-advanced">
                     <label>
-                        Backend API taban URL
-                        <input id="settingBackendUrl" type="url" autocomplete="off" placeholder="https://api-sizin.onrender.com" />
+                        Analiz sunucu adresi
+                        <input id="settingBackendUrl" type="url" autocomplete="off" placeholder="https://api-sizin.ornek.com" />
                     </label>
                     <label>
                         RAG koleksiyon adı
                         <input id="settingRagCollection" type="text" autocomplete="off" placeholder="default" />
-                    </label>
-                    <label>
-                        Jira proje anahtarı
-                        <input id="settingJiraProject" type="text" autocomplete="off" placeholder="TEAM, PROJ vb." />
                     </label>
                     <label>
                         GitHub repository (owner/repo)

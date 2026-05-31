@@ -56,8 +56,10 @@
             {% if form.api_key.errors %}
             <div class="field-error">⚠ {% for e in form.api_key.errors %}{{ e }}{% endfor %}</div>
             {% endif %}
-            <small class="field-hint">Anahtar yalnızca bu istek için kullanılır; veritabanına veya sunucu ortamına yazılmaz.</small>
+            <small class="field-hint">Boş bırakılırsa ⚙️ Ayarlar’daki anahtar kullanılır. Sunucuda saklanmaz.</small>
           </div>
+
+          {{ form.model_type }}
 
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">⚡ Analiz Et</button>
@@ -87,6 +89,32 @@
     <p>AI_RA — Kurumsal gereksinim analizi ve kalite otomasyonu &copy; 2026</p>
   </div>
 </footer>
+
+<script>
+(function () {
+  function applyStoredConfig() {
+    var cfg = typeof window.aiRaLoadConfig === "function" ? window.aiRaLoadConfig() : null;
+    if (!cfg) return;
+    var apiInput = document.getElementById("id_api_key");
+    var mtInput = document.getElementById("id_model_type");
+    var key = (cfg.llm_api_key || cfg.gemini_api_key || "").trim();
+    if (apiInput && key && !apiInput.value.trim()) apiInput.value = key;
+    if (mtInput && cfg.model_type) mtInput.value = cfg.model_type;
+  }
+  function ensureKeyBeforeSubmit(event) {
+    var apiInput = document.getElementById("id_api_key");
+    if (!apiInput || apiInput.value.trim()) return;
+    var cfg = typeof window.aiRaLoadConfig === "function" ? window.aiRaLoadConfig() : null;
+    if (!cfg) return;
+    var key = (cfg.llm_api_key || cfg.gemini_api_key || "").trim();
+    if (key) apiInput.value = key;
+    else event.preventDefault();
+  }
+  document.addEventListener("DOMContentLoaded", applyStoredConfig);
+  var form = document.querySelector(".form-container form");
+  if (form) form.addEventListener("submit", ensureKeyBeforeSubmit);
+})();
+</script>
 
 </body>
 </html>

@@ -1,13 +1,25 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-ai-ra-saas-prototype-key-2024')
+_DEFAULT_SECRET = 'django-insecure-ai-ra-saas-prototype-key-2024'
+SECRET_KEY = os.environ.get('SECRET_KEY', _DEFAULT_SECRET)
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '*').split(',') if h.strip()]
+
+if not DEBUG:
+    if SECRET_KEY == _DEFAULT_SECRET:
+        raise ImproperlyConfigured('Production ortaminda SECRET_KEY ortam degiskeni zorunludur.')
+    if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['*']:
+        raise ImproperlyConfigured('Production ortaminda ALLOWED_HOSTS acikca tanimlanmalidir.')
+
+# Django -> FastAPI export kaydi (ayri servis deploy icin)
+FASTAPI_BASE_URL = os.environ.get('FASTAPI_BASE_URL', os.environ.get('AI_RA_API_BASE_URL', '')).strip()
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -57,8 +69,8 @@ DATABASES = {
     }
 }
 
-# Analyze sonuc verisini DB'ye yazmamak icin session'i istemci cookie'sinde tut.
-SESSION_ENGINE = 'django.contrib.sessions.backends.signed_cookies'
+# Analiz metinleri buyuk olabilir; imzali cerez (~4KB) limitine takilmamak icin DB session.
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
