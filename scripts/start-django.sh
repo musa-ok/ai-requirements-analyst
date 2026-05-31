@@ -1,4 +1,8 @@
 #!/usr/bin/env sh
 set -e
 python manage.py migrate --noinput
-exec gunicorn ai_ra_saas.wsgi --bind "0.0.0.0:${PORT:-8080}" --workers 2
+exec gunicorn ai_ra_saas.wsgi \
+  --bind "0.0.0.0:${PORT:-8080}" \
+  --workers 1 \
+  --timeout 180 \
+  --graceful-timeout 30

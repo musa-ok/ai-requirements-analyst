@@ -1,13 +1,4 @@
-# Lokal gelistirme: tam yigin (Django + FastAPI + test araclari)
-# DigitalOcean: requirements-django.txt (web) + requirements-api.txt (AI)
-Django>=4.2
-gunicorn>=21.2.0
-whitenoise>=6.6.0
-pytest>=7.4.0
-pytest-django>=4.7.0
-behave>=1.2.6
-
-# ── FastAPI AI Core (existing backend) ──
+# FastAPI AI servisi — tam analiz yigini
 fastapi==0.110.3
 uvicorn[standard]==0.29.0
 langchain-google-genai==1.0.10

@@ -71,6 +71,32 @@ class ServiceTests(TestCase):
         msg = _format_llm_error(ResourceExhausted("429 quota exceeded"))
         self.assertIn("kotasi doldu", msg.lower())
 
+    @patch("requests.post")
+    def test_analyze_via_http_when_fastapi_url_set(self, mock_post):
+        import os
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "acceptance_criteria": ["Given a", "When b", "Then c"],
+            "gherkin_scenarios": ["Feature: F\n  Scenario: S\n    Given x"],
+            "story_points": 2,
+            "qa_feedback": "OK",
+            "qa_status": "passed",
+        }
+        mock_post.return_value = mock_response
+
+        with patch.dict(os.environ, {"FASTAPI_BASE_URL": "http://127.0.0.1:8001"}, clear=False):
+            payload = analyze_requirement(
+                "Kullanici giris yapabilmelidir.",
+                project_name="HTTP Test",
+                api_key="test-key",
+            )
+        mock_post.assert_called_once()
+        self.assertEqual(payload["story_point"], 2)
+        self.assertIn("Given a", payload["bdd_output"])
+
 
 class ExportBridgeTests(TestCase):
     def test_register_in_process_creates_export_record(self):

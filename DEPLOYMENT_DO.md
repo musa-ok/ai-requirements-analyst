@@ -80,17 +80,19 @@ python -m pytest -m integration
 | **django** | `sh scripts/start-django.sh` (migrate + gunicorn) | `$PORT` (8080) |
 | **api** | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` | `$PORT` |
 
-Build (Django):
+Build (Django — hafif, LangChain yok):
 
 ```bash
-pip install -r requirements.txt && python manage.py collectstatic --noinput
+pip install -r requirements-django.txt && python manage.py collectstatic --noinput
 ```
 
-Build (API):
+Build (API — tam AI yığını):
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-api.txt
 ```
+
+Lokal geliştirme için hepsi: `pip install -r requirements.txt`
 
 Şablon spec: [`.do/app.yaml`](.do/app.yaml)
 
@@ -101,9 +103,9 @@ pip install -r requirements.txt
 1. [DigitalOcean](https://cloud.digitalocean.com/) → **Apps** → **Create App** → GitHub repo bağla.
 2. **İki Web Service** ekle (aynı repo, farklı isim/komut):
 
-   **Service: `django`**
-   - Build: `pip install -r requirements.txt && python manage.py collectstatic --noinput`
-   - Run: `sh scripts/start-django.sh`
+   **Service: `django`** (512 MB yeterli — analiz HTTP ile API’ye gider)
+   - Build: `pip install -r requirements-django.txt && python manage.py collectstatic --noinput`
+   - Run: `sh scripts/start-django.sh` (migrate + gunicorn `--timeout 180 --workers 1`)
    - Health: `/` (200)
    - Env:
      - `DEBUG=False`
@@ -111,8 +113,8 @@ pip install -r requirements.txt
      - `ALLOWED_HOSTS` → `django-xxx.ondigitalocean.app` (kendi domain’in)
      - `FASTAPI_BASE_URL` → `https://api-xxx.ondigitalocean.app` (API servis URL’si)
 
-   **Service: `api`**
-   - Build: `pip install -r requirements.txt`
+   **Service: `api`** (önerilen: **basic-xs / 1 GB** — LangChain bellek kullanır)
+   - Build: `pip install -r requirements-api.txt`
    - Run: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
    - Health check path: `/health`
    - Env:
@@ -142,7 +144,7 @@ curl -sI https://django-xxx.ondigitalocean.app/
 | `SECRET_KEY` | django | Evet |
 | `DEBUG` | django | `False` |
 | `ALLOWED_HOSTS` | django | Evet (domain) |
-| `FASTAPI_BASE_URL` | django | Evet (export köprüsü) |
+| `FASTAPI_BASE_URL` | django | Evet (analiz + export HTTP köprüsü) |
 | `CORS_ALLOW_ORIGINS` | api | Evet (UI origin’leri) |
 | `CHROMA_PERSIST_DIR` | api | Önerilir |
 | LLM `api_key` | — | **Hayır** (istemciden gelir) |
@@ -159,7 +161,9 @@ curl -sI https://django-xxx.ondigitalocean.app/
 | Deploy timeout | API health `/health` — LangChain boot’ta yüklenmez (lazy) |
 | `tokenizers` / pip build fail | `runtime.txt` (Python 3.11); Chroma opsiyonel — `requirements-rag.txt` |
 | `no such table: django_session` | Run: `sh scripts/start-django.sh` |
+| `WORKER TIMEOUT` / SIGKILL (OOM) | Tek serviste LangChain çalıştırma; **2 servis** + `FASTAPI_BASE_URL`; API’yi **1 GB** yapın; gunicorn `--timeout 180` |
 | `ImproperlyConfigured` | Prod’da `SECRET_KEY` ve `ALLOWED_HOSTS` set et |
+| Gemini 429 kotası | Ücretsiz ~20 istek/gün; bekleyin veya faturalandırma açın |
 
 ---
 
