@@ -4,9 +4,9 @@ AI-RA is a **Multi-Agent Requirements Analysis System** that transforms vague so
 
 ---
 
-## HW5 — FirstSaaSPrototype (Django)
+## Web UI (Django)
 
-The `FirstSaaSPrototype` in this repo is the HW5 submission: a working Django MVT SaaS prototype demonstrating 3-tier architecture, RESTful routing, BDD/Gherkin output generation, and full test coverage.
+Django MVT web arayüzü: gereksinim formu, analiz sonuçları, geçmiş ve export.
 
 | URL | Description |
 |-----|-------------|
@@ -57,13 +57,3 @@ cd frontend && python3 -m http.server 5500
 ```
 
 **Tests:** `python -m pytest` (Django + FastAPI contract + health)
-
-| Role | Name |
-|:---|:---|
-| **Project Leader** | Muhammed Sina Gün |
-| **Tester** | Berk Kızgın |
-| **Developer** | Musa Ok |
-| **Developer** | Seyyid Muhammed Sun |
-| **Developer** | Şahin Kara |
-
-**Supervisor:** Prof. Dr. Haluk Gümüşkaya — Istanbul Arel University, BLML210 Software Engineering
