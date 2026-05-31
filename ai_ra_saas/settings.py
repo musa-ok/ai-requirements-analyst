@@ -5,16 +5,19 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-_DEFAULT_SECRET = 'django-insecure-ai-ra-saas-prototype-key-2024'
-SECRET_KEY = os.environ.get('SECRET_KEY', _DEFAULT_SECRET)
-
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+SECRET_KEY = os.environ.get('SECRET_KEY', '').strip()
+if not SECRET_KEY:
+    if DEBUG:
+        from django.core.management.utils import get_random_secret_key
+        SECRET_KEY = get_random_secret_key()
+    else:
+        raise ImproperlyConfigured('Production ortaminda SECRET_KEY ortam degiskeni zorunludur.')
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
 if not DEBUG:
-    if SECRET_KEY == _DEFAULT_SECRET:
-        raise ImproperlyConfigured('Production ortaminda SECRET_KEY ortam degiskeni zorunludur.')
     if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['*']:
         raise ImproperlyConfigured('Production ortaminda ALLOWED_HOSTS acikca tanimlanmalidir.')
 

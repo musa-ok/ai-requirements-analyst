@@ -24,9 +24,9 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-**Tests:** `python -m pytest` + `python manage.py test requirements_app` (ayrıntı: `STATUS.md`)
+**Tests:** `python -m pytest` + `python manage.py test requirements_app`
 
-**Deploy:** Render — `render.yaml` (Django + FastAPI) veya `Procfile` (Django only)
+**Deploy:** DigitalOcean — bkz. `DEPLOYMENT_DO.md`
 
 ---
 
