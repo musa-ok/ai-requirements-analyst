@@ -157,6 +157,7 @@ curl -sI https://django-xxx.ondigitalocean.app/
 | Export PDF 404 | `FASTAPI_BASE_URL` Django’da yanlış veya analiz register olmamış |
 | CORS hatası | `CORS_ALLOW_ORIGINS`’e Django/SPA HTTPS origin ekle |
 | Deploy timeout | API health `/health` — LangChain boot’ta yüklenmez (lazy) |
+| `tokenizers` / pip build fail | `runtime.txt` (Python 3.11); Chroma opsiyonel — `requirements-rag.txt` |
 | `ImproperlyConfigured` | Prod’da `SECRET_KEY` ve `ALLOWED_HOSTS` set et |
 
 ---

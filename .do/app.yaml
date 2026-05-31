@@ -18,11 +18,13 @@ services:
     instance_size_slug: basic-xxs
     instance_count: 1
     http_port: 8080
-    build_command: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    build_command: pip install --upgrade pip && pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
     run_command: gunicorn ai_ra_saas.wsgi --bind 0.0.0.0:$PORT --workers 2
     health_check:
       http_path: /
     envs:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: DEBUG
         value: "False"
       - key: SECRET_KEY
@@ -43,11 +45,13 @@ services:
     instance_size_slug: basic-xxs
     instance_count: 1
     http_port: 8080
-    build_command: pip install -r requirements.txt
+    build_command: pip install --upgrade pip && pip install -r requirements.txt
     run_command: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     health_check:
       http_path: /health
     envs:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       - key: CORS_ALLOW_ORIGINS
         value: https://YOUR_DJANGO_APP_DOMAIN
       - key: CHROMA_PERSIST_DIR

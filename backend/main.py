@@ -212,7 +212,16 @@ def _compile_analysis_workflow() -> Any:
 def _get_chroma_client():
     global _chroma_client
     if _chroma_client is None:
-        import chromadb
+        try:
+            import chromadb
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "RAG (ChromaDB) bu ortamda kurulu degil. "
+                    "Lokal icin: pip install -r requirements-rag.txt"
+                ),
+            ) from exc
 
         persist_dir = os.environ.get("CHROMA_PERSIST_DIR", "").strip()
         if persist_dir:
@@ -220,6 +229,18 @@ def _get_chroma_client():
         else:
             _chroma_client = chromadb.Client()
     return _chroma_client
+
+
+def _fetch_rag_context(collection_name: str, query_text: str) -> str:
+    try:
+        collection = _get_chroma_client().get_or_create_collection(name=collection_name)
+    except HTTPException:
+        return ""
+    if collection.count() == 0:
+        return ""
+    query = collection.query(query_texts=[query_text], n_results=3)
+    docs = query.get("documents", [[]])[0]
+    return "\n".join(docs).strip()
 
 
 def _build_markdown(analysis: dict) -> str:
@@ -379,15 +400,6 @@ def _normalize_qa_payload(data: dict) -> dict:
     if not isinstance(feedback, str) or not feedback.strip():
         raise ValueError("qa_feedback bos olamaz.")
     return {"qa_status": status, "qa_feedback": feedback.strip()}
-
-
-def _fetch_rag_context(collection_name: str, query_text: str) -> str:
-    collection = _get_chroma_client().get_or_create_collection(name=collection_name)
-    if collection.count() == 0:
-        return ""
-    query = collection.query(query_texts=[query_text], n_results=3)
-    docs = query.get("documents", [[]])[0]
-    return "\n".join(docs).strip()
 
 
 @app.get("/", tags=["system"])

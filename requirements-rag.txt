@@ -1,0 +1,5 @@
+# Opsiyonel RAG (PDF -> Chroma). Lokal gelistirme icin:
+#   pip install -r requirements-rag.txt
+# DigitalOcean build'de tokenizers derlemesi basarisiz olabilir; canli analiz RAG olmadan calisir.
+-r requirements.txt
+chromadb==0.5.23
